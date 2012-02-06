@@ -1,1 +1,5 @@
+wget s3.amazonaws.com/alexa-static/top-1m.csv.zip
+virtualenv . --no-site-packages --distribute -v
 pip install -U selenium
+pip install -U ipython
+pip install scapy # may not work :(
