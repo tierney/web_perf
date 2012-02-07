@@ -20,7 +20,8 @@ _TIMEOUT = 30 # seconds.
 _IFACES = { 't-mobile' : 'usb0', # Android
             'verizon' : 'eth1'   # iPhone
             }
-
+_IFUP_PAUSE = 10
+_IFDOWN_PAUSE = 2
 
 class Logger(object):
   def __init__(self, carrier, browser, domain):
@@ -86,9 +87,9 @@ def main(argv):
     # t-mobile Measurement.
     print 'Switching interfaces for t-mobile.'
     subprocess.Popen('ifconfig eth1 down', shell=True).wait()
-    time.sleep(1)
+    time.sleep(_IFDOWN_PAUSE)
     subprocess.Popen('ifconfig usb0 up', shell=True).wait()
-    time.sleep(6)
+    time.sleep(_IFUP_PAUSE)
     for domain in domains:
       Logger('t-mobile', 'android', domain).run()
       Logger('t-mobile', 'chrome', domain).run()
@@ -97,9 +98,9 @@ def main(argv):
     # verizon Measurement.
     print 'Switching interfaces for verizon.'
     subprocess.Popen('ifconfig usb0 down', shell=True).wait()
-    time.sleep(1)
+    time.sleep(_IFDOWN_PAUSE)
     subprocess.Popen('ifconfig eth1 up', shell=True).wait()
-    time.sleep(6)
+    time.sleep(_IFUP_PAUSE)
     for domain in domains:
       Logger('verizon', 'android', domain).run()
       Logger('verizon', 'chrome', domain).run()
