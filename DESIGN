@@ -32,3 +32,32 @@ across different links but what are the energy concerns?
 
 Application knows better than the lower layers about how to reason about
 multiple connections.
+
+----
+
+SETTINGS frame modification.
+
+
+"SETTINGS frames can be sent at any time by either endpoint, are optionally
+sent, and are fully asynchronous."
+
+                      1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +--------------------------------------------------------------+
+ |                                                              |
+ +----------------+---------------------------------------------+
+ | Flags          | Length                                      |
+ +----------------+---------------------------------------------+
+ |         Number of Entries                                    |
+ +----------------+---------------------------------------------+
+ | ID.flags       |  Unique ID                                  |
+ +----------------+---------------------------------------------+
+ | Value                                                        |
+ +--------------------------------------------------------------+
+ |                                                              |
+ |                                                              |
+ +--------------------------------------------------------------+
+
+
+
+
