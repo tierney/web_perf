@@ -21,17 +21,46 @@ strategies employed in SPDY, demonstrate a lower latency user-experience.
 But a single TCP connection implies a 4-tuple: (src IP, src port, dst IP, dst
 port) that links identity with IP addresses and ports. Nevertheless, multiple
 network interfaces are common features in modern mobile devices. This means that
-the total bandwidth available to a single application cannot be achieved easily
-in the current model of multiple IP identities.
+the total bandwidth available to a single application (presumably, that which is
+available to the device) cannot be achieved in the current model of multiple IP
+identities.
 
 An application may be able to leverage multiple TCP connections without
-requiring the overhead of stabilizing MPTCP~\cite{mpctp-nsdi11}.
+requiring the overhead of stabilizing either the MPTCP~\cite{mpctp-nsdi11}
+codebase (kernel modifications) or changing the web. An application knows best
+what it needs and providing the right abstractions below an application can ease
+the application meeting its deadlines.
+
+While SPDY saves in some dimensions its potential is not fully
+realized. Moreover, the opportunity for q
+
+----
+
+Client may generate two SPDY connections and choose to send requests along each
+as normal. When we get values back we let the winner pass to the application but
+otherwise use the informatoin we learn about the connection to assess the value
+of multiple interfaces and otherwise send more data along one path or another.
+
+ClientSocketHandles have group_name_, which uniquely identifies the origin and
+type of the connection. Used by the ClientSocketPool to group similarly
+connected client socket objects.
+
+We can either extend this by associating origin, _interface_, and type of the
+connection.
+
+Each connection may have multiple stream IDs. We share state about the multiple
+SPDY connections through key-value section of the SPDY protocol.
+
+----
 
 'TCP congestion window vs. application specification.' Repeat what we send
 across different links but what are the energy concerns?
 
 Application knows better than the lower layers about how to reason about
 multiple connections.
+
+SPDY offers flow control. We can also consider the implications of leveraging
+congestion control at higher layers in the protocol.
 
 ----
 
@@ -57,7 +86,5 @@ sent, and are fully asynchronous."
  |                                                              |
  |                                                              |
  +--------------------------------------------------------------+
-
-
 
 
