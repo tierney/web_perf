@@ -1,7 +1,25 @@
 DESIGN Thoughts for SPDY with Multipath.
 
+
 When lost segments are detected we send the cwnd to the receiver in order to
 know that we must
+
+Managing Socket State
+
+const std::string group_name
+
+  group_name is the primary label placed on sockets. A group_name consists of an
+  origin and type. This is to associate simiarly connected client socket
+  objects. We can either augment the group_name by appending interface
+  information for considering sockets
+
+  HostPortPair::HostPortPair(const std::string& in_host, uint16 in_port)
+    : host_(in_host), port_(in_port) {}
+
+  would thus become
+
+  HostPortPair::HostPortPair(const std::string& in_host, uint16 in_port)
+    : host_(in_host), port_(in_port) {}
 
 ----
 
@@ -91,5 +109,3 @@ sent, and are fully asynchronous."
  |                                                              |
  |                                                              |
  +--------------------------------------------------------------+
-
-
