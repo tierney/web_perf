@@ -1,5 +1,10 @@
 DESIGN Thoughts for SPDY with Multipath.
 
+When lost segments are detected we send the cwnd to the receiver in order to
+know that we must
+
+----
+
 SPDY explicitly avoids using multiple TCP connections to a domain, which
 contradicts the design choice made by modern browsers. Modern browsers may
 employ up to six TCP connections to a particular domain. This is to overcome TCP
