@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 import gflags
+import os
+import re
+import signal
 import subprocess
 import sys
 import time
@@ -9,17 +12,16 @@ from selenium import webdriver
 
 FLAGS = gflags.FLAGS
 
-# gflags.DEFINE_string()
-# gflags.DEFINE_boolean()
-# gflags.DEFINE_integer()
 gflags.DEFINE_boolean('debug', False, 'produces debugging output')
 
-# gflags.RegisterValidator()
-
 _TIMEOUT = 30 # seconds.
-_IFACES = { 't-mobile' : 'usb0', # Android
-            'verizon' : 'eth1'   # iPhone
+# _IFACES = { 't-mobile' : 'usb0', # Android
+#             'verizon' : 'eth1',  # iPhone
+#             'wired' : 'eth0'
+#             }
+_IFACES = { 'wifi' : 'wlan0', # Android
             }
+
 _IFUP_PAUSE = 10
 _IFDOWN_PAUSE = 2
 
@@ -38,8 +40,24 @@ class Logger(object):
       return webdriver.Remote("http://localhost:8080/wd/hub",
                               webdriver.DesiredCapabilities.ANDROID)
 
+  def kill_tcp_processes(self):
+    ss = subprocess.Popen('ss -iepm', shell=True, stdout=subprocess.PIPE)
+    lines = [line.strip() for line in ss.stdout.readlines()]
+    for line in lines:
+      m = re.search('users:(\(.*\))', line)
+      if m:
+        pid = int(m.groups()[0].split(',')[1])
+        os.kill(pid, signal.SIGKILL)
+
   def run(self):
+    print 'Kill old sessions.'
+    self.kill_top_processes()
+
     print 'Starting sniffer.'
+    ss_log = subprocess.Popen(
+      '/home/tierney/repos/fss/src/ss -g > %s_%s_%s_%s.pcap' % \
+        (self.carrier, self.browser, self.domain, str(time.time())), shell=True)
+
     pcap = subprocess.Popen(
       ['tcpdump','-i','%s' % _IFACES[self.carrier],'-w',
        '%s_%s_%s_%s.pcap' % (self.carrier, self.browser, self.domain,
@@ -54,7 +72,9 @@ class Logger(object):
 
     print 'Letting residual packets arrive and ending sniff session.'
     time.sleep(3)
+
     pcap.terminate()
+    ss_log.terminate()
 
 
 class AlexaFile(object):
@@ -68,6 +88,25 @@ class AlexaFile(object):
     return domains
 
 
+def prepare_ifaces(carrier):
+  for carr in _IFACES.keys():
+    if carr == carrier:
+      continue
+    subprocess.Popen('ifconfig %s down' % _IFACES[carr], shell=True).wait()
+    time.sleep(_IFDOWN_PAUSE)
+
+  subprocess.Popen('ifconfig %s up' % _IFACES[carrier], shell=True).wait()
+  time.sleep(_IFUP_PAUSE)
+
+
+def run_carrier(carrier, browser_list):
+  print 'Switching interfaces for t-mobile.'
+  prepare_ifaces(carrier)
+  for domain in domains:
+    for browser in browser_list:
+      Logger(carrier, browser, domain).run()
+
+
 def main(argv):
   try:
     argv = FLAGS(argv)  # parse flags
@@ -79,32 +118,15 @@ def main(argv):
 
   alexa = AlexaFile('./top-1m.csv')
   domains = alexa.domains_desc()
-  to_fetch = domains[:500]
+  to_fetch = domains[:3]
 
+  browser_list = ['android', 'chrome', 'firefox']
+  carrier_list = _IFACES.keys()
   while to_fetch:
     domains = [to_fetch.pop(0) for i in range(10)]
 
-    # t-mobile Measurement.
-    print 'Switching interfaces for t-mobile.'
-    subprocess.Popen('ifconfig eth1 down', shell=True).wait()
-    time.sleep(_IFDOWN_PAUSE)
-    subprocess.Popen('ifconfig usb0 up', shell=True).wait()
-    time.sleep(_IFUP_PAUSE)
-    for domain in domains:
-      Logger('t-mobile', 'android', domain).run()
-      Logger('t-mobile', 'chrome', domain).run()
-      Logger('t-mobile', 'firefox', domain).run()
-
-    # verizon Measurement.
-    print 'Switching interfaces for verizon.'
-    subprocess.Popen('ifconfig usb0 down', shell=True).wait()
-    time.sleep(_IFDOWN_PAUSE)
-    subprocess.Popen('ifconfig eth1 up', shell=True).wait()
-    time.sleep(_IFUP_PAUSE)
-    for domain in domains:
-      Logger('verizon', 'android', domain).run()
-      Logger('verizon', 'chrome', domain).run()
-      Logger('verizon', 'firefox', domain).run()
+    for carrier in carrier_list:
+      run_carrier(carrier, browser_list)
 
 if __name__ == '__main__':
   main(sys.argv)
