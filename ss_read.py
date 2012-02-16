@@ -19,16 +19,20 @@ RCV_RTT = re.compile('rcv_rtt:(\d+)')
 RCV_SPACE = re.compile('rcv_space:(\d+)')
 
 while True:
-  popen = subprocess.Popen(['ss', '-ipem'], stdout=subprocess.PIPE)
+  popen = subprocess.Popen(['/home/tierney/repos/iproute-20110315/misc/ss',
+                            '-ipem'], stdout=subprocess.PIPE)
   for line in [line.strip() for line in popen.stdout.readlines()]:
     # print line
 
     m = re.search(USERS, line)
-    if m: print 'USERS: ', m.groups()
+    if m:
+      users = m.groups()
 
     # m = re.search(RTT, line)
     # if m: print 'RTT: ', m.groups()
 
     m = re.search(CWND, line)
-    if m: print 'CWND: ', m.groups()
+    if m:
+      cwnd = int(m.groups()[0])
+      print 'CWND: %20s\t %s' % (users[0], m.groups()[0])
   print

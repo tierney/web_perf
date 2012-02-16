@@ -10,17 +10,38 @@ import scikits.statsmodels as sm
 import matplotlib.pyplot as plt
 from scikits.statsmodels import tools
 
-for to_plot in ['cumulative', 'verizon', 't-mobile']:
+# files = ['cumulative','wired','t-mobile']
+files = ['cumulative', 'wired','verizon', 't-mobile']
+for to_plot in files:
+  num_domains = 0
   with open('/tmp/%s.log' % to_plot) as fh:
-    durations = [float(line.strip()) for line in fh.readlines()][:-2]
+    durations = []
+    for line in fh.readlines()[:-5]:
+      try:
+        duration = float(line.strip())
+        if duration < 1:
+          print 'Bad measurement: %s.' % (line)
+          continue
+        durations.append(duration)
+        num_domains += 1
+      except ValueError:
+        continue
+
+  if to_plot == 'cumulative':
+    num_domains /= 2 # number of carriers
+    num_domains /= 3 # number of browsers
+  else:
+    num_domains /= 3 # number of browsers
 
   ecdf = tools.tools.ECDF(durations)
-
-  x = np.linspace(min(durations), max(durations))
-  y = ecdf(x)
-  fig = plt.figure()
-  plt.title('Alexa Top 230 Sites - Page Load Time CDF (%s)' % to_plot)
-  plt.xlabel('Time (seconds) for page to load in Selenium.')
-  plt.ylabel('Fraction of pages loading.')
-  plt.step(x, y)
-  fig.savefig('page_load_cdf_%s.png' % to_plot)
+  try:
+    x = np.linspace(min(durations), max(durations))
+    y = ecdf(x)
+    fig = plt.figure()
+    plt.title('Alexa Top ~%d Sites - Page Load Time CDF (%s)' % (num_domains, to_plot))
+    plt.xlabel('Time (seconds) for page to load in Selenium.')
+    plt.ylabel('Fraction of pages loading.')
+    plt.step(x, y)
+    fig.savefig('page_load_cdf_%s.png' % to_plot)
+  except ValueError:
+    print '%s' % to_plot

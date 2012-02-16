@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import gflags
+import os
 import subprocess
 import sys
 import time
@@ -41,14 +42,18 @@ class Analyze(object):
 
   def _parse_filename(self):
     self.carrier, self.browser, self.site, self.epoch_time =\
-        self.filename[:-5].split('_')
+        os.path.split(self.filename)[1][:-5].split('_')
 
   def duration(self):
-    popen = subprocess.Popen("tshark -r %s -e frame.time -T fields" % self.filename,
-                             shell = True, stdout = subprocess.PIPE)
-    lines = [line.strip() for line in popen.stdout.readlines()]
-    start = self._frame_time_epoch_conversion(lines[0])
-    finish = self._frame_time_epoch_conversion(lines[-1])
+    first_dns_req = subprocess.Popen("tshark -r %s -e frame.time -T fields dns" % self.filename,
+                                     shell = True, stdout = subprocess.PIPE)
+    dns_lines = [line.strip() for line in first_dns_req.stdout.readlines()]
+    start = self._frame_time_epoch_conversion(dns_lines[0])
+
+    tcp_packets = subprocess.Popen("tshark -r %s -e frame.time -T fields tcp" % self.filename,
+                                   shell = True, stdout = subprocess.PIPE)
+    tcp_lines = [line.strip() for line in tcp_packets.stdout.readlines()]
+    finish = self._frame_time_epoch_conversion(tcp_lines[-1])
     print finish - start
 
   def get_request_response_time_cdf(self):
