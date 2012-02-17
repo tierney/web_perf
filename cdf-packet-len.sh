@@ -3,11 +3,13 @@
 tmobile_IP=192.168.42.196
 wired_IP=216.165.108.217
 
+DATA_DIR=/home/tierney/data/pcaps_Feb_16
+
 function analyze {
     local CARRIER_IP
     for carrier in wired t-mobile
     do
-        for pcap in pcaps_Feb_16/${carrier}_*pcap
+        for pcap in ${DATA_DIR}/${carrier}_*pcap
         do
             echo $pcap
             if [[ ${carrier} == t-mobile ]]
@@ -22,6 +24,6 @@ function analyze {
     done
 }
 # Get rid of any old log files.
-rm wired.len*.log
+rm -f wired.len*.log
 
 analyze
