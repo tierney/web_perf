@@ -19,6 +19,7 @@ NUM_THREADS = 10
 DATA_DIR = '/home/tierney/data/pcaps'
 files = os.listdir(DATA_DIR)
 
+_TSHARK_BIN = '/home/tierney/repos/wireshark/tshark'
 def pf(msg):
   sys.stdout.write(msg)
   sys.stdout.flush()
@@ -36,10 +37,10 @@ class TsharkFields(threading.Thread):
       while True:
         filepath = self.pcap_queue.get(False)
 
-        cmd = 'tshark -r %s -R \"%s\"' % (filepath, self.total_filter)
+        cmd = _TSHARK_BIN + ' -r %s -R \"%s\"' % (filepath, self.total_filter)
         total = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
-        cmd = 'tshark -r %s -R \"%s\"' % (filepath, self.subset_filter)
+        cmd = _TSHARK_BIN + ' -r %s -R \"%s\"' % (filepath, self.subset_filter)
         subset = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
         total_tcp_packets = len(total.stdout.readlines())
