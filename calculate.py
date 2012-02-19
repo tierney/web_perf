@@ -4,7 +4,15 @@ import os
 import Queue
 import subprocess
 import threading
+import time
 import sys
+
+TMOBILE_IP = '192.168.42.196'
+WIRED_IP = '216.165.108.217'
+
+NUM_THREADS = 5
+DATA_DIR = '/home/tierney/data/pcaps_Feb_16'
+files = os.listdir(DATA_DIR)
 
 def pf(msg):
   sys.stdout.write(msg)
@@ -22,12 +30,9 @@ class TsharkFields(threading.Thread):
     try:
       while True:
         filepath = self.file_queue.get(False)
-        pf('-')
         cmd = 'tshark -r %s -e %s -T fields -R \"%s\"' % \
             (filepath, self.field, self.tfilter)
-        tshark = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-                                  stderr = subprocess.PIPE)
-        pf('.')
+        tshark = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
         tshark.wait()
         values = [value for value in
                   [line.strip() for line in tshark.stdout.readlines()]
@@ -36,59 +41,59 @@ class TsharkFields(threading.Thread):
         self.file_queue.task_done()
     except Queue.Empty:
       return
+    except Exception, e:
+      pf('\nTrouble with: %s.\n' % filepath)
+      pf(e)
+      raise
 
 
-mylist = []
-TMOBILE_IP = '192.168.42.196'
-WIRED_IP = '216.165.108.217'
 
-DATA_DIR = '/home/tierney/data/pcaps_Feb_16'
-files = os.listdir(DATA_DIR)
+def driver(field, shark_filter, pcap_queue, outfilename):
+  values_queue = Queue.Queue()
+  for i in range(NUM_THREADS):
+    t = TsharkFields(pcap_queue, field, shark_filter, values_queue)
+    t.daemon = True
+    t.start()
 
-wired_file_queue = Queue.Queue()
-wired_values_queue = Queue.Queue()
-tmobile_file_queue = Queue.Queue()
-tmobile_values_queue = Queue.Queue()
-for filename in files:
-  if not filename.endswith('pcap'):
-    continue
-  if filename.startswith('wired'):
-    wired_file_queue.put(os.path.join(DATA_DIR, filename))
-  elif filename.startswith('t-mobile'):
-    tmobile_file_queue.put(os.path.join(DATA_DIR, filename))
+  while not pcap_queue.empty():
+    pf('to go:       \r')
+    pf('to go: %d\r' % pcap_queue.qsize())
+    time.sleep(1)
 
-num_worker_threads = 6
-for i in range(num_worker_threads):
-  t = TsharkFields(wired_file_queue, 'tcp.analysis.ack_rtt',
-                   'tcp.analysis.ack_rtt and ip.dst == %s' % WIRED_IP,
-                   wired_values_queue)
-  t.daemon = True
-  t.start()
+  with open(outfilename,'w') as fh:
+    while not values_queue.empty():
+      values = values_queue.get(False)
+      for value in values:
+        fh.write(value + '\n')
+      fh.flush()
+      values_queue.task_done()
 
-for i in range(num_worker_threads):
-  t = TsharkFields(tmobile_file_queue, 'tcp.analysis.ack_rtt',
-                   'tcp.analysis.ack_rtt and ip.dst == %s' % TMOBILE_IP,
-                   tmobile_values_queue)
-  t.daemon = True
-  t.start()
 
-tmobile_file_queue.join()
-wired_file_queue.join()
+def queues():
+  wired_file_queue = Queue.Queue()
+  tmobile_file_queue = Queue.Queue()
+  for filename in files:
+    if not filename.endswith('pcap'):
+      continue
+    if filename.startswith('wired'):
+      wired_file_queue.put(os.path.join(DATA_DIR, filename))
+    elif filename.startswith('t-mobile'):
+      tmobile_file_queue.put(os.path.join(DATA_DIR, filename))
+  return wired_file_queue, tmobile_file_queue
 
-with open('wired_rtt.log','w') as fh:
-  while not wired_values_queue.empty():
-    values = wired_values_queue.get()
-    for value in values:
-      pf(value + ' (w)\n')
-      fh.write(value + '\n')
-    fh.flush()
-    wired_values_queue.task_done()
+# driver('tcp.analysis.ack_rtt', 'tcp.analysis.ack_rtt and ip.dst == %s' % WIRED_IP,
+#        wired_file_queue, 'wired_rtt.log')
+# driver('tcp.analysis.ack_rtt', 'tcp.analysis.ack_rtt and ip.dst == %s' % TMOBILE_IP,
+#        tmobile_file_queue, 't-mobile_rtt.log')
 
-with open('tmobile_rtt.log','w') as fh:
-  while not tmobile_values_queue.empty():
-    values = tmobile_values_queue.get()
-    for value in values:
-      pf(value + ' (t)\n')
-      fh.write(value + '\n')
-    fh.flush()
-    tmobile_values_queue.task_done()
+wired_file_queue, tmobile_file_queue = queues()
+driver('frame.len', 'tcp and not http and ip.src == %s' % WIRED_IP,
+       wired_file_queue,  'wired.len.outgoing.log')
+driver('frame.len', 'tcp and not http and ip.src == %s' % TMOBILE_IP,
+       tmobile_file_queue,  't-mobile.len.outgoing.log')
+
+wired_file_queue, tmobile_file_queue = queues()
+driver('frame.len', 'tcp and not http and ip.dst == %s' % WIRED_IP,
+       wired_file_queue,  'wired.len.incoming.log')
+driver('frame.len', 'tcp and not http and ip.dst == %s' % TMOBILE_IP,
+       tmobile_file_queue,  't-mobile.len.incoming.log')
