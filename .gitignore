@@ -2,3 +2,10 @@
 *.pyc
 *.png
 *.log
+*.tar.gz
+bin/
+include/
+lib/
+local
+share/
+*.tmp
