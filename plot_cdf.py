@@ -74,6 +74,7 @@ class CDFPlotter(object):
       ecdf = distributions.ECDF(data)
       x = np.linspace(min(data), max(data), num=len(data))
       # x = np.linspace(min(data), 1.4, num=len(data))
+      x = np.linspace(0, 35, num=len(data))
       y = ecdf(x)
       plt.step(x, y, 'x', label=self.filepaths[i])
 

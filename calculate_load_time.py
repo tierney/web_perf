@@ -7,18 +7,6 @@ import threading
 import time
 import sys
 
-# Feb 7
-VERIZON_IP = '172.20.10.4'
-TMOBILE_IP = '192.168.42.196'
-
-# Feb 16
-# TMOBILE_IP = '192.168.42.196'
-# WIRED_IP = '216.165.108.217'
-
-# Feb 20
-TMOBILE_IP = '192.168.42.196'
-WIRED_IP = '192.168.1.10'
-
 NUM_THREADS = 10
 DATA_DIR = '/home/tierney/data/pcaps_Feb_20'
 files = os.listdir(DATA_DIR)
@@ -30,47 +18,61 @@ def pf(msg):
   sys.stdout.flush()
 
 class TsharkFields(threading.Thread):
-  def __init__(self, pcap_queue, total_filter, subset_filter, values_queue):
+  def __init__(self, pcap_queue, values_queue):
     self.pcap_queue = pcap_queue
-    self.total_filter = total_filter
-    self.subset_filter = subset_filter
     self.values_queue = values_queue
     threading.Thread.__init__(self)
+
+  def _frame_time_epoch_conversion(self, frame_time):
+    regular_time, sub_second = frame_time.split('.')
+    ret = (time.mktime(time.strptime(regular_time, "%b  %d, %Y %H:%M:%S")) +\
+             (float(sub_second) * (10 ** -9)))
+    return ret
 
   def run(self):
     try:
       while True:
         filepath = self.pcap_queue.get(False)
 
-        cmd = _TSHARK_BIN + ' -r %s -R \"%s\"' % (filepath, self.total_filter)
-        total = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-
-        cmd = _TSHARK_BIN + ' -r %s -R \"%s\"' % (filepath, self.subset_filter)
-        subset = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-
-        total_tcp_packets = len(total.stdout.readlines())
-        if (0 == total_tcp_packets):
+        cmd = _TSHARK_BIN + ' -r %s -e frame.time -T fields dns' % filepath
+        dns_reqs = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+        dns_lines = [line.strip() for line in dns_reqs.stdout.readlines()]
+        # No DNS request...
+        if not dns_lines:
+          pf('No DNS request for %s.\n' % filepath)
           self.pcap_queue.task_done()
           continue
 
-        rtx_packets = len(subset.stdout.readlines())
-        total.wait()
-        subset.wait()
+        start = self._frame_time_epoch_conversion(dns_lines[0])
 
-        loss_rate = rtx_packets / (1. * total_tcp_packets)
+        cmd = _TSHARK_BIN + ' -r %s -e frame.time -T fields tcp' % filepath
+        tcp_packets = subprocess.Popen(cmd, shell = True, stdout = subprocess.PIPE)
+        tcp_lines = [line.strip() for line in tcp_packets.stdout.readlines()]
 
-        self.values_queue.put(loss_rate)
+        # No TCP responses to the DNS requests.
+        if not tcp_lines:
+          pf('No TCP response for %s.\n' % filepath)
+          self.pcap_queue.task_done()
+          continue
+
+        finish = self._frame_time_epoch_conversion(tcp_lines[-1])
+
+        # Only log values where we have a reasonable measure of the page having
+        # loaded (no TCP packets before the DNS request should count).
+        if finish > start:
+          self.values_queue.put(finish - start)
         self.pcap_queue.task_done()
     except Queue.Empty:
       return
     except Exception, e:
+      pf(filepath + '\n')
       pf(str(e))
       raise
 
-def driver(pcap_queue, total_filter, subset_filter, outfilename):
+def driver(pcap_queue, outfilename):
   values_queue = Queue.Queue()
   for i in range(NUM_THREADS):
-    t = TsharkFields(pcap_queue, total_filter, subset_filter, values_queue)
+    t = TsharkFields(pcap_queue, values_queue)
     t.daemon = True
     t.start()
 
@@ -85,7 +87,6 @@ def driver(pcap_queue, total_filter, subset_filter, outfilename):
       fh.write(str(value) + '\n')
       fh.flush()
       values_queue.task_done()
-
 
 def queues():
   wired_file_queue = Queue.Queue()
@@ -104,15 +105,6 @@ def queues():
   return wired_file_queue, tmobile_file_queue, verizon_file_queue
 
 wired_file_queue, tmobile_file_queue, verizon_file_queue = queues()
-driver(wired_file_queue,
-       'tcp and not http and ip.dst == %s' % WIRED_IP,
-       'not http and tcp.analysis.retransmission and ip.dst == %s' % WIRED_IP,
-       'wired.loss_rate.log')
-driver(tmobile_file_queue,
-       'tcp and not http and ip.dst == %s' % TMOBILE_IP,
-       'not http and tcp.analysis.retransmission and ip.dst == %s' % TMOBILE_IP,
-       't-mobile.loss_rate.log')
-# driver(verizon_file_queue,
-#        'tcp and not http and ip.dst == %s' % VERIZON_IP,
-#        'not http and tcp.analysis.retransmission and ip.dst == %s' % VERIZON_IP,
-#        'verizon.loss_rate.log')
+driver(wired_file_queue, 'wired.load_time.log')
+driver(tmobile_file_queue, 't-mobile.load_time.log')
+# driver(verizon_file_queue, 'verizon.loss_rate.log')
