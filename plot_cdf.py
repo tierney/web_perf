@@ -72,9 +72,11 @@ class CDFPlotter(object):
     data_plts = []
     for i, data in enumerate(dataset):
       ecdf = distributions.ECDF(data)
-      x = np.linspace(min(data), max(data))
+      x = np.linspace(min(data), max(data), num=len(data))
+      # x = np.linspace(min(data), 1.4, num=len(data))
+      x = np.linspace(0, 35, num=len(data))
       y = ecdf(x)
-      plt.step(x,y,'x', label=self.filepaths[i])
+      plt.step(x, y, 'x', label=self.filepaths[i])
 
     xmin, xmax, ymin, ymax = plt.axis()
     plt.axis((xmin, xmax, 0, 1))
