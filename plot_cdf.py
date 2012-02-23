@@ -31,10 +31,12 @@ gflags.DEFINE_string('title', '', 'Title for plot.',
                      short_name = 't')
 gflags.DEFINE_string('xlabel', '', 'X-axis label for plot.',
                      short_name = 'x')
+gflags.DEFINE_string('xmax', '', 'X-axis maximum value.')
 gflags.DEFINE_string('ylabel', '', 'Y-axis label for plot.',
                      short_name = 'y')
 gflags.DEFINE_boolean('xlog', False, 'Set xscale to log.',
                       short_name = 'l')
+
 
 logging.basicConfig()
 
@@ -72,9 +74,10 @@ class CDFPlotter(object):
     data_plts = []
     for i, data in enumerate(dataset):
       ecdf = distributions.ECDF(data)
-      x = np.linspace(min(data), max(data), num=len(data))
-      # x = np.linspace(min(data), 1.4, num=len(data))
-      x = np.linspace(0, 35, num=len(data))
+      if FLAGS.xmax:
+        x = np.linspace(0, float(FLAGS.xmax), num=len(data))
+      else:
+        x = np.linspace(min(data), max(data), num=len(data))
       y = ecdf(x)
       plt.step(x, y, 'x', label=self.filepaths[i])
 

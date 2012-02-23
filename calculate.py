@@ -8,10 +8,12 @@ import time
 import sys
 
 TMOBILE_IP = '192.168.42.196'
-WIRED_IP = '216.165.108.217'
+# WIRED_IP = '216.165.108.217'
+WIRED_IP = '192.168.1.10'
+VERIZON_IP = '172.20.10.4'
 
-NUM_THREADS = 5
-DATA_DIR = '/home/tierney/data/pcaps_Feb_16'
+NUM_THREADS = 6
+DATA_DIR = '/home/tierney/data/pcaps_Feb_21_00'
 files = os.listdir(DATA_DIR)
 
 def pf(msg):
@@ -72,6 +74,7 @@ def driver(field, shark_filter, pcap_queue, outfilename):
 def queues():
   wired_file_queue = Queue.Queue()
   tmobile_file_queue = Queue.Queue()
+  verizon_file_queue = Queue.Queue()
   for filename in files:
     if not filename.endswith('pcap'):
       continue
@@ -79,21 +82,27 @@ def queues():
       wired_file_queue.put(os.path.join(DATA_DIR, filename))
     elif filename.startswith('t-mobile'):
       tmobile_file_queue.put(os.path.join(DATA_DIR, filename))
-  return wired_file_queue, tmobile_file_queue
+    elif filename.startswith('verizon'):
+      verizon_file_queue.put(os.path.join(DATA_DIR, filename))
 
-# driver('tcp.analysis.ack_rtt', 'tcp.analysis.ack_rtt and ip.dst == %s' % WIRED_IP,
-#        wired_file_queue, 'wired_rtt.log')
-# driver('tcp.analysis.ack_rtt', 'tcp.analysis.ack_rtt and ip.dst == %s' % TMOBILE_IP,
-#        tmobile_file_queue, 't-mobile_rtt.log')
+  return wired_file_queue, tmobile_file_queue, verizon_file_queue
 
-wired_file_queue, tmobile_file_queue = queues()
-driver('frame.len', 'tcp and not http and ip.src == %s' % WIRED_IP,
-       wired_file_queue,  'wired.len.outgoing.log')
-driver('frame.len', 'tcp and not http and ip.src == %s' % TMOBILE_IP,
-       tmobile_file_queue,  't-mobile.len.outgoing.log')
+wired_file_queue, tmobile_file_queue, verizon_file_queue = queues()
+driver('tcp.analysis.ack_rtt', 'tcp.analysis.ack_rtt and ip.dst == %s' % WIRED_IP,
+       wired_file_queue, 'wired.rtt.log')
+driver('tcp.analysis.ack_rtt', 'tcp.analysis.ack_rtt and ip.dst == %s' % TMOBILE_IP,
+       tmobile_file_queue, 't-mobile.rtt.log')
+driver('tcp.analysis.ack_rtt', 'tcp.analysis.ack_rtt and ip.dst == %s' % VERIZON_IP,
+       verizon_file_queue, 'verizon.rtt.log')
 
-wired_file_queue, tmobile_file_queue = queues()
-driver('frame.len', 'tcp and not http and ip.dst == %s' % WIRED_IP,
-       wired_file_queue,  'wired.len.incoming.log')
-driver('frame.len', 'tcp and not http and ip.dst == %s' % TMOBILE_IP,
-       tmobile_file_queue,  't-mobile.len.incoming.log')
+# wired_file_queue, tmobile_file_queue = queues()
+# driver('frame.len', 'tcp and not http and ip.src == %s' % WIRED_IP,
+#        wired_file_queue,  'wired.len.outgoing.log')
+# driver('frame.len', 'tcp and not http and ip.src == %s' % TMOBILE_IP,
+#        tmobile_file_queue,  't-mobile.len.outgoing.log')
+
+# wired_file_queue, tmobile_file_queue = queues()
+# driver('frame.len', 'tcp and not http and ip.dst == %s' % WIRED_IP,
+#        wired_file_queue,  'wired.len.incoming.log')
+# driver('frame.len', 'tcp and not http and ip.dst == %s' % TMOBILE_IP,
+#        tmobile_file_queue,  't-mobile.len.incoming.log')

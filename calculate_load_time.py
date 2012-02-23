@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+# dns.qry.name == pinterest.com
 import os
 import Queue
 import subprocess
@@ -8,7 +8,7 @@ import time
 import sys
 
 NUM_THREADS = 10
-DATA_DIR = '/home/tierney/data/pcaps_Feb_20'
+DATA_DIR = '/home/tierney/data/pcaps_Feb_21_00'
 files = os.listdir(DATA_DIR)
 
 _TSHARK_BIN = '/home/tierney/repos/wireshark/tshark'
@@ -34,9 +34,13 @@ class TsharkFields(threading.Thread):
       while True:
         filepath = self.pcap_queue.get(False)
 
-        cmd = _TSHARK_BIN + ' -r %s -e frame.time -T fields dns' % filepath
+        filename = os.path.split(filepath)[-1]
+        domain = filename.split('_')[2]
+        cmd = _TSHARK_BIN + ' -r %s -e frame.time -T fields dns.qry.name == %s'\
+            % (filepath, domain)
         dns_reqs = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
         dns_lines = [line.strip() for line in dns_reqs.stdout.readlines()]
+
         # No DNS request...
         if not dns_lines:
           pf('No DNS request for %s.\n' % filepath)
@@ -107,4 +111,4 @@ def queues():
 wired_file_queue, tmobile_file_queue, verizon_file_queue = queues()
 driver(wired_file_queue, 'wired.load_time.log')
 driver(tmobile_file_queue, 't-mobile.load_time.log')
-# driver(verizon_file_queue, 'verizon.loss_rate.log')
+driver(verizon_file_queue, 'verizon.load_time.log')

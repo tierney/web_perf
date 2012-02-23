@@ -79,6 +79,7 @@ class Logger(object):
       logging.error("webdriver error (%s): %s." % (name, str(e)))
     return browser_driver
 
+
   def kill_tcp_processes(self):
     ss = subprocess.Popen('ss -iepm', shell=True, stdout=subprocess.PIPE)
     lines = [line.strip() for line in ss.stdout.readlines()
@@ -164,6 +165,25 @@ def run_single_experiment(carrier, browser, domain):
 def run_carrier(domains, carrier, browser_list):
   logging.info('Switching interfaces for %s.' % (carrier))
   prepare_ifaces(carrier)
+
+  # Do iface throughput check.
+  timestamp = str(time.time())
+  pcap = subprocess.Popen(
+    ['tcpdump','-i','%s' % _IFACES[self.carrier],'-w',
+     '%s_%s_%s_%s.pcap' % (self.carrier, 'NA', 'NA', timestamp)])
+
+  time.sleep(2)
+  iperf_fh = open('%s_%s.iperf.log' % (timestamp, self.carrier), 'w')
+  iperf = subprocess.Popen(['iperf', '-c', 'theseus.news.cs.nyu.edu',
+                            '--reverse','-i','3','-t','45'],
+                           stdout=iperf_fh, stderr=iperf_fh)
+
+  iperf.wait()
+  iperf_fh.flush()
+  iperf_fh.close()
+  pcap.terminate()
+
+  # Run through the domains.
   for domain in domains:
     logging.info('Domain: %s.' % (domain))
     for browser in browser_list:

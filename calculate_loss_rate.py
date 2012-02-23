@@ -20,7 +20,7 @@ TMOBILE_IP = '192.168.42.196'
 WIRED_IP = '192.168.1.10'
 
 NUM_THREADS = 10
-DATA_DIR = '/home/tierney/data/pcaps_Feb_20'
+DATA_DIR = '/home/tierney/data/pcaps_Feb_21_00'
 files = os.listdir(DATA_DIR)
 
 _TSHARK_BIN = '/home/tierney/repos/wireshark/tshark'
@@ -112,7 +112,7 @@ driver(tmobile_file_queue,
        'tcp and not http and ip.dst == %s' % TMOBILE_IP,
        'not http and tcp.analysis.retransmission and ip.dst == %s' % TMOBILE_IP,
        't-mobile.loss_rate.log')
-# driver(verizon_file_queue,
-#        'tcp and not http and ip.dst == %s' % VERIZON_IP,
-#        'not http and tcp.analysis.retransmission and ip.dst == %s' % VERIZON_IP,
-#        'verizon.loss_rate.log')
+driver(verizon_file_queue,
+       'tcp and not http and ip.dst == %s' % VERIZON_IP,
+       'not http and tcp.analysis.retransmission and ip.dst == %s' % VERIZON_IP,
+       'verizon.loss_rate.log')
