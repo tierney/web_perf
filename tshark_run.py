@@ -10,6 +10,7 @@
 # This will make the android server available at http://localhost:8080/wd/hub from the host machine. You're now ready to run the tests. Let's take a look at some code.
 
 import gflags
+import httplib
 import logging
 import os
 import re
@@ -19,6 +20,7 @@ import subprocess
 import sys
 import time
 import threading
+from Command import Command
 from selenium import webdriver
 
 FLAGS = gflags.FLAGS
@@ -52,32 +54,6 @@ class Logger(object):
     self.carrier = carrier
     self.browser = browser
     self.domain = domain
-
-  def _browser(self, name):
-    browser_driver = None
-    try:
-      if 'chrome' == name:
-        browser_driver = webdriver.Chrome()
-      elif 'firefox' == name:
-        browser_driver = webdriver.Firefox()
-      elif 'android' == name:
-        # Restart the android selenium app before trying to call into it.
-        subprocess.call(
-          ['/home/tierney/repos/android/android-sdk-linux/platform-tools/adb',
-           '-s','emulator-5554','shell','am','start','-S','-a',
-           'android.intent.action.MAIN','-n',
-           'org.openqa.selenium.android.app/.MainActivity'])
-        time.sleep(2)
-        subprocess.call(['/home/tierney/repos/android/android-sdk-linux/platform-tools/adb',
-                         '-s','emulator-5554','forward','tcp:8080','tcp:8080'])
-        time.sleep(2)
-        browser_driver = webdriver.Remote("http://localhost:8080/wd/hub",
-                                webdriver.DesiredCapabilities.ANDROID)
-    except socket.error, e:
-      logging.error("webdriver connection error (%s): %s." % (name, str(e)))
-    except Exception, e:
-      logging.error("webdriver error (%s): %s." % (name, str(e)))
-    return browser_driver
 
 
   def kill_tcp_processes(self):
@@ -113,18 +89,9 @@ class Logger(object):
     time.sleep(2)
 
     logging.info('Starting browser.')
-    browser = None
-    attempts = 0
-    while not browser:
-      if attempts >= 3:
-        logging.error("ERROR with %s, %s, %s." % (self.carrier, self.browser, self.domain))
-        return
-      attempts += 1
-      browser = self._browser(self.browser)
-
-    browser.get('http://' + self.domain) # Executes until "loaded."
-    logging.info('Quit browser and all windows.')
-    browser.quit()
+    command = Command('./BrowserRun.py --browser %s --domain %s' % \
+                        (self.browser, self.domain))
+    command.run(timeout=300)
 
     pcap.terminate()
     ss_fh.flush()
@@ -160,7 +127,7 @@ def prepare_ifaces(carrier):
 def run_single_experiment(carrier, browser, domain):
   logger = Logger(carrier, browser, domain)
   logger.run()
-
+  del(logger)
 
 def run_carrier(domains, carrier, browser_list):
   logging.info('Switching interfaces for %s.' % (carrier))
@@ -169,16 +136,17 @@ def run_carrier(domains, carrier, browser_list):
   # Do iface throughput check.
   timestamp = str(time.time())
   pcap = subprocess.Popen(
-    ['tcpdump','-i','%s' % _IFACES[self.carrier],'-w',
-     '%s_%s_%s_%s.pcap' % (self.carrier, 'NA', 'NA', timestamp)])
+    ['tcpdump','-i','%s' % _IFACES[carrier],'-w',
+     '%s_%s_%s_%s.pcap' % (carrier, 'NA', 'NA', timestamp)])
 
   time.sleep(2)
-  iperf_fh = open('%s_%s.iperf.log' % (timestamp, self.carrier), 'w')
+  iperf_fh = open('%s_%s.iperf.log' % (timestamp, carrier), 'w')
   iperf = subprocess.Popen(['iperf', '-c', 'theseus.news.cs.nyu.edu',
-                            '--reverse','-i','3','-t','45'],
+                            '--reverse'],
                            stdout=iperf_fh, stderr=iperf_fh)
-
-  iperf.wait()
+  time.sleep(50)
+  # iperf.wait()
+  iperf.terminate()
   iperf_fh.flush()
   iperf_fh.close()
   pcap.terminate()
