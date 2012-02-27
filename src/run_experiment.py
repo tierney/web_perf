@@ -12,7 +12,7 @@ import time
 import threading
 
 logging.basicConfig(
-  level=logging.DEBUG, stream=sys.stdout, filename='run_experiment.log',
+  stream=sys.stdout, level=logging.DEBUG, filename='run_experiment.log',
   format='%(asctime)-15s %(name)-5s %(levelname)-8s %(message)s')
 
 import gflags
@@ -110,7 +110,7 @@ class Logger(object):
     logging.info('Kill old sessions.')
     self.kill_tcp_processes()
 
-    logging.info('Starting sniffer.')
+    logging.info('Starting sniffers.')
     ss_log_name = '%s_%s_%s_%s.ss.log' % \
                    (self.carrier, self.browser, self.domain, str(time.time()))
     ss_log_path = os.path.join(FLAGS.logdir, ss_log_name)
@@ -122,6 +122,7 @@ class Logger(object):
     pcap_path = os.path.join(FLAGS.logdir, pcap_name)
     pcap = subprocess.Popen(
       ['tcpdump','-i','%s' % self.interface,'-w', pcap_path])
+    logging.info(str(['tcpdump','-i','%s' % self.interface,'-w', pcap_path]))
     time.sleep(2)
 
     logging.info('Starting browser.')
@@ -161,9 +162,13 @@ def prepare_ifaces(carrier, interface):
   for carr in _CARRIER_IFACES_MAGIC_DICT.keys():
     if carr == carrier:
       continue
-    subprocess.Popen('ifconfig %s down' % interface, shell=True).wait()
+
+    iface_to_down = _CARRIER_IFACES_MAGIC_DICT.get(carr)
+    logging.info('ifdown-ing %s.' % iface_to_down)
+    subprocess.Popen('ifconfig %s down' % iface_to_down, shell=True).wait()
     time.sleep(_IFDOWN_PAUSE)
 
+  logging.info('ifup-ing %s.' % interface)
   subprocess.Popen('ifconfig %s up' % interface, shell=True).wait()
   time.sleep(_IFUP_PAUSE)
 
@@ -200,6 +205,8 @@ def run_carrier(domains, carrier, interface, browser_list):
   for domain in domains:
     logging.info('Domain: %s.' % (domain))
     for browser in browser_list:
+      logging.info('Running experiment for %s %s %s %s.' % \
+                     (carrier, interface, browser, domain))
       run_single_experiment(carrier, interface, browser, domain)
 
 
