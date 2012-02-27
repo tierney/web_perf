@@ -14,6 +14,16 @@ import threading
 from Command import Command
 from selenium import webdriver
 
+_IFUP_PAUSE = 10
+_IFDOWN_PAUSE = 2
+
+_BROWSERS_MAGIC_LIST = ['android', 'chrome', 'firefox']
+_CARRIER_IFACES_MAGIC_DICT = { 't-mobile' : 'usb0', # Android Phone
+                               'verizon' : 'eth1',  # iPhone
+                               'wireless': 'wlan0',
+                               'wired' : 'eth0'
+                               }
+
 FLAGS = gflags.FLAGS
 
 gflags.DEFINE_boolean('debug', False, 'produces debugging output',
@@ -28,27 +38,43 @@ gflags.DEFINE_string('debuglog', 'experiment.log',
 gflags.DEFINE_string('logdir', None, 'Name of logfile directory.',
                      short_name = 'l')
 gflags.DEFINE_multistring('browsers', None, 'Browsers to use.', short_name = 'b')
+gflags.DEFINE_multistring('carrierifaces', None,
+                          '"<carrier>,<iface>" string pair.',
+                          short_name = 'c')
 
-gflags.RegisterValidator('browsers',
-                         lambda names:
-                         not [name for name in names
-                              if name not in ['android', 'chrome', 'firefox']],
-                         message = 'Unknown browser.',
+# TODO(tierney): These validators should be made more flexible, if not removed.
+
+def validate_browsers(browsers):
+  for browser in browers:
+    if browser not in _BROWSERS_MAGIC_LIST:
+      return False
+  return True
+
+def validate_carrierifaces(carrierifaces):
+  for carrieriface in carrierifaces:
+    try:
+      carrier, iface = carrierifaces.split(',')
+    except ValueError:
+      return False
+
+    if carrier not in _CARRIER_IFACES_MAGIC_DICT:
+      return False
+
+    expected_iface = _CARRIER_IFACES_MAGIC_DICT.get(carrier)
+    if iface is not expected_iface:
+      return False
+
+gflags.RegisterValidator('browsers', validate_browsers,
+                         message = 'Unknown browser.', flag_values=FLAGS)
+gflags.RegisterValidator('carrierifaces', validate_carrierifaces,
+                         message = 'Unknown "<carrier>,<iface>" pair',
                          flag_values=FLAGS)
 
-_IFACES = { 't-mobile' : 'usb0', # Android Phone
-            'verizon' : 'eth1',  # iPhone
-            # 'wireless': 'wlan0',
-            'wired' : 'eth0'
-            }
-
-
-_IFUP_PAUSE = 10
-_IFDOWN_PAUSE = 2
 
 class Logger(object):
-  def __init__(self, carrier, browser, domain):
+  def __init__(self, carrier, interface, browser, domain):
     self.carrier = carrier
+    self.interface = interface
     self.browser = browser
     self.domain = domain
 
@@ -129,19 +155,19 @@ def prepare_ifaces(carrier):
   time.sleep(_IFUP_PAUSE)
 
 
-def run_single_experiment(carrier, browser, domain):
-  logger = Logger(carrier, browser, domain)
+def run_single_experiment(carrier, interface, browser, domain):
+  logger = Logger(carrier, interface, browser, domain)
   logger.run()
   del(logger)
 
-def run_carrier(domains, carrier, browser_list):
+def run_carrier(domains, carrier, interface, browser_list):
   logging.info('Switching interfaces for %s.' % (carrier))
   prepare_ifaces(carrier)
 
   # Do iface throughput check.
   timestamp = str(time.time())
   pcap = subprocess.Popen(
-    ['tcpdump','-i','%s' % _IFACES[carrier],'-w',
+    ['tcpdump','-i','%s' % interface,'-w',
      '%s_%s_%s_%s.pcap' % (carrier, 'NA', 'NA', timestamp)])
 
   time.sleep(2)
@@ -160,7 +186,7 @@ def run_carrier(domains, carrier, browser_list):
   for domain in domains:
     logging.info('Domain: %s.' % (domain))
     for browser in browser_list:
-      run_single_experiment(carrier, browser, domain)
+      run_single_experiment(carrier, interface, browser, domain)
 
 
 def main(argv):
@@ -183,12 +209,12 @@ def main(argv):
   to_fetch = domains
   to_fetch.reverse() # For faster list/stack pop().
 
-  carrier_list = _IFACES.keys()
   while to_fetch:
     domains = [to_fetch.pop() for i in range(10)]
 
-    for carrier in carrier_list:
-      run_carrier(domains, carrier, FLAGS.browsers)
+    for carrierinterface in FLAGS.carrierifaces:
+      carrier, interface = carrierifaces.split(',')
+      run_carrier(domains, carrier, interface, FLAGS.browsers)
 
 if __name__ == '__main__':
   main(sys.argv)

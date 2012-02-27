@@ -1,18 +1,39 @@
 README for SPDY Eval.
 
-Quick Setup:
+*Requirements*
+
+Install the following:
+
+https://github.com/tierney/iperf
+https://github.com/tierney/fss
+
+*Quick Setup*
+
+Laptop running experiment and graph/analysis code:
 
   make setup # Lots of python action...
   source bin/activate # This should work if everything went well before.
   pip install -U selenium
+  # The following commands takes a while to complete and is only necessary for
+  # graphing.
   pip install -U numpy
   pip install -U matplotlib
   pip install -U scikits.statsmodels
 
-Setting up the Python virtual environment:
+*Usage*
 
-  virtualenv . --no-site-packages --distribute -v
-  pip install -U selenium
+Laptop running experiment:
+
+o
+
+iperf (reverse NAT) server:
+
+o Install the iperf program above. Note: this is NOT the standard iperf -- this
+  iperf allows for initiating reverse TCP throughput tests from a NAT'd client.
+
+o In a screen session, run the following command
+
+  ./src/run_iperf_reverse_server.py
 
 Selenium Setup:
 
