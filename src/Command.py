@@ -43,5 +43,7 @@ class Command(object):
           os.kill(pid, signal.SIGKILL)
         except OSError:
           logging.error('pid already killed: (%s, %s).' % (line, cmd))
+        except ValueError, e:
+          logging.error('%s: %s (%s, %s).' % (str(e), line))
 
     return self.process.returncode
