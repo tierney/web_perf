@@ -35,6 +35,8 @@ gflags.DEFINE_integer('timeout', 300, 'Timeout in seconds.', lower_bound=0,
                       short_name = 't')
 gflags.DEFINE_string('debuglog', 'experiment.log',
                      'Filename for experiment log.', short_name = 'd')
+gflags.DEFINE_string('sspath', None,
+                     'Filepath of special ss', short_name = 's')
 gflags.DEFINE_string('logdir',
                      time.strftime('%Y_%m_%d_%H_%M_%S',
                                    time.gmtime(time.time())),
@@ -44,10 +46,12 @@ gflags.DEFINE_multistring('carrierifaces', None,
                           '"<carrier>,<iface>" string pair.',
                           short_name = 'c')
 
+gflags.MarkFlagAsRequired('sspath')
+
 # TODO(tierney): These validators should be made more flexible, if not removed.
 
 def validate_browsers(browsers):
-  for browser in browers:
+  for browser in browsers:
     if browser not in _BROWSERS_MAGIC_LIST:
       return False
   return True
@@ -55,16 +59,18 @@ def validate_browsers(browsers):
 def validate_carrierifaces(carrierifaces):
   for carrieriface in carrierifaces:
     try:
-      carrier, iface = carrierifaces.split(',')
+      carrier, iface = carrieriface.split(',')
     except ValueError:
       return False
 
     if carrier not in _CARRIER_IFACES_MAGIC_DICT:
+      print carrier
       return False
 
     expected_iface = _CARRIER_IFACES_MAGIC_DICT.get(carrier)
-    if iface is not expected_iface:
+    if iface != expected_iface:
       return False
+  return True
 
 gflags.RegisterValidator('browsers', validate_browsers,
                          message = 'Unknown browser.', flag_values=FLAGS)
@@ -105,14 +111,13 @@ class Logger(object):
                    (self.carrier, self.browser, self.domain, str(time.time()))
     ss_log_path = os.path.join(FLAGS.logdir, ss_log_name)
     ss_fh = open(ss_log_path + '.tmp', 'w')
-    ss_log = subprocess.Popen(['/home/tierney/repos/fss/src/ss','-g'],
-                              stdout = ss_fh)
+    ss_log = subprocess.Popen([FLAGS.sspath,'-g'], stdout = ss_fh)
 
     pcap_name = '%s_%s_%s_%s.pcap' % (self.carrier, self.browser, self.domain,
                                       str(time.time()))
     pcap_path = os.path.join(FLAGS.logdir, pcap_name)
     pcap = subprocess.Popen(
-      ['tcpdump','-i','%s' % _IFACES[self.carrier],'-w', pcap_path])
+      ['tcpdump','-i','%s' % self.interface,'-w', pcap_path])
     time.sleep(2)
 
     logging.info('Starting browser.')
@@ -148,14 +153,14 @@ class AlexaFile(object):
     return domains
 
 
-def prepare_ifaces(carrier):
-  for carr in _IFACES.keys():
+def prepare_ifaces(carrier, interface):
+  for carr in _CARRIER_IFACES_MAGIC_DICT.keys():
     if carr == carrier:
       continue
-    subprocess.Popen('ifconfig %s down' % _IFACES[carr], shell=True).wait()
+    subprocess.Popen('ifconfig %s down' % interface, shell=True).wait()
     time.sleep(_IFDOWN_PAUSE)
 
-  subprocess.Popen('ifconfig %s up' % _IFACES[carrier], shell=True).wait()
+  subprocess.Popen('ifconfig %s up' % interface, shell=True).wait()
   time.sleep(_IFUP_PAUSE)
 
 
@@ -166,7 +171,7 @@ def run_single_experiment(carrier, interface, browser, domain):
 
 def run_carrier(domains, carrier, interface, browser_list):
   logging.info('Switching interfaces for %s.' % (carrier))
-  prepare_ifaces(carrier)
+  prepare_ifaces(carrier, interface)
 
   # Do iface throughput check.
   timestamp = str(time.time())
@@ -176,7 +181,7 @@ def run_carrier(domains, carrier, interface, browser_list):
 
   time.sleep(2)
   iperf_name = '%s_%s.iperf.log' % (timestamp, carrier)
-  iperf_path = os.path.join(FLAGS.logdir, iperf_path)
+  iperf_path = os.path.join(FLAGS.logdir, iperf_name)
   iperf_fh = open(iperf_path, 'w')
   iperf = subprocess.Popen(['iperf', '-c', 'theseus.news.cs.nyu.edu',
                             '--reverse'], stdout=iperf_fh, stderr=iperf_fh)
@@ -225,7 +230,7 @@ def main(argv):
     domains = [to_fetch.pop() for i in range(10)]
 
     for carrierinterface in FLAGS.carrierifaces:
-      carrier, interface = carrierifaces.split(',')
+      carrier, interface = carrierinterface.split(',')
       run_carrier(domains, carrier, interface, FLAGS.browsers)
 
 if __name__ == '__main__':
