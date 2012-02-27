@@ -24,7 +24,11 @@ Laptop running experiment and graph/analysis code:
 
 Laptop running experiment:
 
-o ./src/run_experiment.py -- ...
+Probably all you want is this:
+o ./src/run_experiment.py -b chrome -b firefox -c t-mobile,usb0 -c wired,eth0
+
+If you're interested in receiver-side congestion window stuff:
+o ./src/run_experiment.py -b chrome -b firefox -c t-mobile,usb0 -c wired,eth0 --sspath ~/repos/fss/src/ss
 
 iperf (reverse NAT) server:
 

@@ -23,12 +23,12 @@ from selenium import webdriver
 _IFUP_PAUSE = 10
 _IFDOWN_PAUSE = 2
 
-_BROWSERS_MAGIC_LIST = ['android', 'chrome', 'firefox']
-_CARRIER_IFACES_MAGIC_DICT = { 't-mobile' : 'usb0', # Android Phone
-                               'verizon' : 'eth1',  # iPhone
-                               'wireless': 'wlan0',
-                               'wired' : 'eth0'
-                               }
+# _BROWSERS_MAGIC_LIST = ['android', 'chrome', 'firefox']
+# _CARRIER_IFACES_MAGIC_DICT = { 't-mobile' : 'usb0', # Android Phone
+#                                'verizon' : 'eth1',  # iPhone
+#                                'wireless': 'wlan0',
+#                                'wired' : 'eth0'
+#                                }
 
 FLAGS = gflags.FLAGS
 
@@ -50,37 +50,37 @@ gflags.DEFINE_multistring('carrierifaces', None,
                           '"<carrier>,<iface>" string pair.',
                           short_name = 'c')
 
-gflags.MarkFlagAsRequired('sspath')
+# gflags.MarkFlagAsRequired('sspath')
 
 # TODO(tierney): These validators should be made more flexible, if not removed.
 
-def validate_browsers(browsers):
-  for browser in browsers:
-    if browser not in _BROWSERS_MAGIC_LIST:
-      return False
-  return True
+# def validate_browsers(browsers):
+#   for browser in browsers:
+#     if browser not in _BROWSERS_MAGIC_LIST:
+#       return False
+#   return True
 
-def validate_carrierifaces(carrierifaces):
-  for carrieriface in carrierifaces:
-    try:
-      carrier, iface = carrieriface.split(',')
-    except ValueError:
-      return False
+# def validate_carrierifaces(carrierifaces):
+#   for carrieriface in carrierifaces:
+#     try:
+#       carrier, iface = carrieriface.split(',')
+#     except ValueError:
+#       return False
 
-    if carrier not in _CARRIER_IFACES_MAGIC_DICT:
-      print carrier
-      return False
+#     if carrier not in _CARRIER_IFACES_MAGIC_DICT:
+#       print carrier
+#       return False
 
-    expected_iface = _CARRIER_IFACES_MAGIC_DICT.get(carrier)
-    if iface != expected_iface:
-      return False
-  return True
+#     expected_iface = _CARRIER_IFACES_MAGIC_DICT.get(carrier)
+#     if iface != expected_iface:
+#       return False
+#   return True
 
-gflags.RegisterValidator('browsers', validate_browsers,
-                         message = 'Unknown browser.', flag_values=FLAGS)
-gflags.RegisterValidator('carrierifaces', validate_carrierifaces,
-                         message = 'Unknown "<carrier>,<iface>" pair',
-                         flag_values=FLAGS)
+# gflags.RegisterValidator('browsers', validate_browsers,
+#                          message = 'Unknown browser.', flag_values=FLAGS)
+# gflags.RegisterValidator('carrierifaces', validate_carrierifaces,
+#                          message = 'Unknown "<carrier>,<iface>" pair',
+#                          flag_values=FLAGS)
 
 
 class Logger(object):
@@ -111,11 +111,12 @@ class Logger(object):
     self.kill_tcp_processes()
 
     logging.info('Starting sniffers.')
-    ss_log_name = '%s_%s_%s_%s.ss.log' % \
-                   (self.carrier, self.browser, self.domain, str(time.time()))
-    ss_log_path = os.path.join(FLAGS.logdir, ss_log_name)
-    ss_fh = open(ss_log_path + '.tmp', 'w')
-    ss_log = subprocess.Popen([FLAGS.sspath,'-g'], stdout = ss_fh)
+    if FLAGS.sspath:
+      ss_log_name = '%s_%s_%s_%s.ss.log' % \
+                     (self.carrier, self.browser, self.domain, str(time.time()))
+      ss_log_path = os.path.join(FLAGS.logdir, ss_log_name)
+      ss_fh = open(ss_log_path + '.tmp', 'w')
+      ss_log = subprocess.Popen([FLAGS.sspath,'-g'], stdout = ss_fh)
 
     pcap_name = '%s_%s_%s_%s.pcap' % (self.carrier, self.browser, self.domain,
                                       str(time.time()))
@@ -139,11 +140,12 @@ class Logger(object):
     command.run(timeout = FLAGS.timeout, pskill = to_kill)
 
     pcap.terminate()
-    ss_fh.flush()
-    ss_log.terminate()
-    ss_fh.flush()
-    ss_fh.close()
-    os.rename(ss_log_path + '.tmp', ss_log_path)
+    if FLAGS.sspath:
+      ss_fh.flush()
+      ss_log.terminate()
+      ss_fh.flush()
+      ss_fh.close()
+      os.rename(ss_log_path + '.tmp', ss_log_path)
     return
 
 
@@ -158,8 +160,8 @@ class AlexaFile(object):
     return domains
 
 
-def prepare_ifaces(carrier, interface):
-  for carr in _CARRIER_IFACES_MAGIC_DICT.keys():
+def prepare_ifaces(carriers, carrier, interface):
+  for carr in carriers:
     if carr == carrier:
       continue
 
@@ -178,9 +180,9 @@ def run_single_experiment(carrier, interface, browser, domain):
   logger.run()
   del(logger)
 
-def run_carrier(domains, carrier, interface, browser_list):
+def run_carrier(domains, carriers, carrier, interface, browser_list):
   logging.info('Switching interfaces for %s.' % (carrier))
-  prepare_ifaces(carrier, interface)
+  prepare_ifaces(carriers, carrier, interface)
 
   # Do iface throughput check.
   timestamp = str(time.time())
@@ -238,12 +240,19 @@ def main(argv):
   log_compressor.daemon = True
   log_compressor.start()
 
+  carriers = []
+  ifaces = []
+  for carrieriface in FLAGS.carrierifaces:
+    carrier, interface = carrieriface.split(',')
+    carriers.append(carrier)
+    ifaces.append(interface)
+
   while to_fetch:
     domains = [to_fetch.pop() for i in range(10)]
 
     for carrierinterface in FLAGS.carrierifaces:
       carrier, interface = carrierinterface.split(',')
-      run_carrier(domains, carrier, interface, FLAGS.browsers)
+      run_carrier(domains, carriers, carrier, interface, FLAGS.browsers)
 
 if __name__ == '__main__':
   main(sys.argv)
