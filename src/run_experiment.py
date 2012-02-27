@@ -122,7 +122,7 @@ class Logger(object):
 
     command = Command('./BrowserRun.py --browser %s --domain %s' % \
                         (self.browser, self.domain))
-    command.run(timeout=FLAGS.timeout, to_kill)
+    command.run(timeout = FLAGS.timeout, pskill = to_kill)
 
     pcap.terminate()
     ss_fh.flush()

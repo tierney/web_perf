@@ -24,7 +24,7 @@ Laptop running experiment and graph/analysis code:
 
 Laptop running experiment:
 
-o
+o ./src/run_experiment.py -- ...
 
 iperf (reverse NAT) server:
 
