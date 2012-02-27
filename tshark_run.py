@@ -89,9 +89,15 @@ class Logger(object):
     time.sleep(2)
 
     logging.info('Starting browser.')
+
+    # TODO(tierney): Hacks to fix how we deal with non-terminating connections.
+    to_kill = None
+    if self.browser == 'chrome': to_kill = 'chromedriver'
+    elif self.browser == 'firefox': to_kill = 'firefox'
+
     command = Command('./BrowserRun.py --browser %s --domain %s' % \
                         (self.browser, self.domain))
-    command.run(timeout=300)
+    command.run(timeout=300, to_kill)
 
     pcap.terminate()
     ss_fh.flush()
