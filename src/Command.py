@@ -44,6 +44,6 @@ class Command(object):
         except OSError:
           logging.error('pid already killed: (%s, %s).' % (line, cmd))
         except ValueError, e:
-          logging.error('%s: %s (%s, %s).' % (str(e), line))
+          logging.error('%s: %s.' % (str(e), line))
 
     return self.process.returncode
