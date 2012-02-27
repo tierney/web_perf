@@ -35,8 +35,10 @@ gflags.DEFINE_integer('timeout', 300, 'Timeout in seconds.', lower_bound=0,
                       short_name = 't')
 gflags.DEFINE_string('debuglog', 'experiment.log',
                      'Filename for experiment log.', short_name = 'd')
-gflags.DEFINE_string('logdir', None, 'Name of logfile directory.',
-                     short_name = 'l')
+gflags.DEFINE_string('logdir',
+                     time.strftime('%Y_%m_%d_%H_%M_%S',
+                                   time.gmtime(time.time())),
+                     'Name of logfile directory.', short_name = 'l')
 gflags.DEFINE_multistring('browsers', None, 'Browsers to use.', short_name = 'b')
 gflags.DEFINE_multistring('carrierifaces', None,
                           '"<carrier>,<iface>" string pair.',
@@ -101,14 +103,16 @@ class Logger(object):
     logging.info('Starting sniffer.')
     ss_log_name = '%s_%s_%s_%s.ss.log' % \
                    (self.carrier, self.browser, self.domain, str(time.time()))
-    ss_fh = open(ss_log_name + '.tmp', 'w')
+    ss_log_path = os.path.join(FLAGS.logdir, ss_log_name)
+    ss_fh = open(ss_log_path + '.tmp', 'w')
     ss_log = subprocess.Popen(['/home/tierney/repos/fss/src/ss','-g'],
                               stdout = ss_fh)
 
+    pcap_name = '%s_%s_%s_%s.pcap' % (self.carrier, self.browser, self.domain,
+                                      str(time.time()))
+    pcap_path = os.path.join(FLAGS.logdir, pcap_name)
     pcap = subprocess.Popen(
-      ['tcpdump','-i','%s' % _IFACES[self.carrier],'-w',
-       '%s_%s_%s_%s.pcap' % (self.carrier, self.browser, self.domain,
-                             str(time.time()))])
+      ['tcpdump','-i','%s' % _IFACES[self.carrier],'-w', pcap_path])
     time.sleep(2)
 
     logging.info('Starting browser.')
@@ -129,7 +133,7 @@ class Logger(object):
     ss_log.terminate()
     ss_fh.flush()
     ss_fh.close()
-    os.rename(ss_log_name + '.tmp', ss_log_name)
+    os.rename(ss_log_path + '.tmp', ss_log_path)
     return
 
 
@@ -166,15 +170,16 @@ def run_carrier(domains, carrier, interface, browser_list):
 
   # Do iface throughput check.
   timestamp = str(time.time())
-  pcap = subprocess.Popen(
-    ['tcpdump','-i','%s' % interface,'-w',
-     '%s_%s_%s_%s.pcap' % (carrier, 'NA', 'NA', timestamp)])
+  pcap_name = '%s_%s_%s_%s.pcap' % (carrier, 'NA', 'NA', timestamp)
+  pcap_path = os.path.join(FLAGS.logdir, pcap_name)
+  pcap = subprocess.Popen(['tcpdump', '-i', '%s' % interface, '-w', pcap_path])
 
   time.sleep(2)
-  iperf_fh = open('%s_%s.iperf.log' % (timestamp, carrier), 'w')
+  iperf_name = '%s_%s.iperf.log' % (timestamp, carrier)
+  iperf_path = os.path.join(FLAGS.logdir, iperf_path)
+  iperf_fh = open(iperf_path, 'w')
   iperf = subprocess.Popen(['iperf', '-c', 'theseus.news.cs.nyu.edu',
-                            '--reverse'],
-                           stdout=iperf_fh, stderr=iperf_fh)
+                            '--reverse'], stdout=iperf_fh, stderr=iperf_fh)
   time.sleep(50)
   # iperf.wait()
   iperf.terminate()
@@ -208,6 +213,13 @@ def main(argv):
   domains = alexa.domains_desc()
   to_fetch = domains
   to_fetch.reverse() # For faster list/stack pop().
+
+  # Create log directory.
+  try:
+    os.mkdir(FLAGS.logdir)
+  except OSError:
+    logging.error('Problem with logdir name.')
+    return
 
   while to_fetch:
     domains = [to_fetch.pop() for i in range(10)]
