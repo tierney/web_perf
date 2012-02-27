@@ -27,12 +27,13 @@ FLAGS = gflags.FLAGS
 
 gflags.DEFINE_boolean('debug', False, 'produces debugging output')
 gflags.DEFINE_string('note', '', 'Note for the log.')
+gflags.DEFINE_string('alexa', 'top-500-US.csv', 'Alexa CSV file to seed.',
+                     short_name = 'a')
+gflags.DEFINE_integer('timeout', 300, 'Timeout in seconds.', lower_bound=0,
+                      short_name = 't')
+gflags.DEFINE_string('logfile', 'experiment.log', 'Filename for experiment log.',
+                     short_name = 'l')
 
-logging.basicConfig(stream=sys.stdout, filename='tshark_run.log',
-                    level=logging.INFO)
-logging.info(FLAGS.note)
-
-_TIMEOUT = 30 # seconds.
 
 _IFACES = { 't-mobile' : 'usb0', # Android Phone
             'verizon' : 'eth1',  # iPhone
@@ -92,12 +93,14 @@ class Logger(object):
 
     # TODO(tierney): Hacks to fix how we deal with non-terminating connections.
     to_kill = None
-    if self.browser == 'chrome': to_kill = 'chromedriver'
-    elif self.browser == 'firefox': to_kill = 'firefox'
+    if self.browser == 'chrome':
+      to_kill = 'chromedriver'
+    elif self.browser == 'firefox':
+      to_kill = 'firefox'
 
     command = Command('./BrowserRun.py --browser %s --domain %s' % \
                         (self.browser, self.domain))
-    command.run(timeout=300, to_kill)
+    command.run(timeout=FLAGS.timeout, to_kill)
 
     pcap.terminate()
     ss_fh.flush()
@@ -170,6 +173,12 @@ def main(argv):
   except gflags.FlagsError, e:
     logging.error('%s\nUsage: %s ARGS\n%s' % (e, sys.argv[0], FLAGS))
     sys.exit(1)
+
+  logging.basicConfig(stream=sys.stdout, filename=FLAGS.logfile,
+                      level=logging.INFO)
+
+  if FLAGS.note:
+    logging.info(FLAGS.note)
   if FLAGS.debug:
     logging.info('non-flag arguments:', argv)
 
