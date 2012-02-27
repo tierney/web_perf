@@ -2,7 +2,6 @@
 
 import gflags
 import sys
-import threading
 from selenium import webdriver
 
 FLAGS = gflags.FLAGS
@@ -14,11 +13,10 @@ gflags.DEFINE_string('domain', None, 'Domain to HTTP GET.')
 gflags.MarkFlagAsRequired('browser')
 gflags.MarkFlagAsRequired('domain')
 
-class BrowserRun(threading.Thread):
+class BrowserRun(object):
   def __init__(self, browser, domain):
     self.browser = browser
     self.domain = domain
-    threading.Thread.__init(self)
 
   def _browser(self):
     browser_driver = None
@@ -48,7 +46,7 @@ class BrowserRun(threading.Thread):
       logging.error("webdriver error (%s): %s." % (self.browser, str(e)))
     return browser_driver
 
-  def run():
+  def start(self):
     browser = self._browser()
     browser.get('http://' + self.domain)
     browser.quit()

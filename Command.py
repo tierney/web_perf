@@ -5,6 +5,9 @@
 #   command.run(timeout=1)
 
 import logging
+import os
+import shlex
+import signal
 import subprocess
 import threading
 
@@ -15,10 +18,10 @@ class Command(object):
     self.cmd = cmd
     self.process = None
 
-  def run(self, timeout):
+  def run(self, timeout, pskill=None):
     def target():
       logging.info('Thread started')
-      self.process = subprocess.Popen(self.cmd, shell=True)
+      self.process = subprocess.Popen(shlex.split(self.cmd))
       self.process.communicate()
       logging.info('Thread finished')
 
@@ -30,4 +33,15 @@ class Command(object):
       logging.info('Terminating process')
       self.process.terminate()
       thread.join()
+    if pskill:
+      to_kill = subprocess.Popen('ps axo pid,cmd | grep %s' % pskill,
+                                 shell=True, stdout=subprocess.PIPE)
+      lines = [line.strip() for line in to_kill.stdout.readlines()]
+      for line in lines:
+        try:
+          pid, cmd = line.split()
+          os.kill(pid, signal.SIGKILL)
+        except OSError:
+          logging.error('pid already killed: (%s, %s).' % (line, cmd))
+
     return self.process.returncode
