@@ -1,16 +1,15 @@
 README for SPDY Eval.
 
-References:
+Quick Setup:
 
-  Alexa Top 1 Million Sites:
-  `wget s3.amazonaws.com/alexa-static/top-1m.csv.zip`
+  make setup # Lots of python action...
+  source bin/activate # This should work if everything went well before.
+  pip install -U selenium
 
 Setting up the Python virtual environment:
 
   virtualenv . --no-site-packages --distribute -v
   pip install -U selenium
-  pip install -U ipython
-  pip install scapy # may not work :(
 
 Selenium Setup:
 
@@ -26,3 +25,8 @@ o Android emulator must be launched and ready. Visit the following for more
       -n org.openqa.selenium.android.app/.MainActivity
 
   adb -s <serialId> forward tcp:8080 tcp:8080
+
+References:
+
+  Alexa Top 1 Million Sites:
+  `wget s3.amazonaws.com/alexa-static/top-1m.csv.zip`
