@@ -1,14 +1,5 @@
 #!/usr/bin/env python
 
-# $./adb -s <serialId> shell am start -a android.intent.action.MAIN -n org.openqa.selenium.android.app/.MainActivity
-# You can start the application in debug mode, which has more verbose logs by doing:
-
-# $./adb -s <serialId> shell am start -a android.intent.action.MAIN -n org.openqa.selenium.android.app/.MainActivity -e debug true
-# Now we need to setup the port forwarding in order to forward traffic from the host machine to the emulator. In a terminal type:
-
-# $./adb -s <serialId> forward tcp:8080 tcp:8080
-# This will make the android server available at http://localhost:8080/wd/hub from the host machine. You're now ready to run the tests. Let's take a look at some code.
-
 import gflags
 import httplib
 import logging
@@ -25,15 +16,25 @@ from selenium import webdriver
 
 FLAGS = gflags.FLAGS
 
-gflags.DEFINE_boolean('debug', False, 'produces debugging output')
+gflags.DEFINE_boolean('debug', False, 'produces debugging output',
+                      short_name = 'g')
 gflags.DEFINE_string('note', '', 'Note for the log.')
 gflags.DEFINE_string('alexa', 'top-500-US.csv', 'Alexa CSV file to seed.',
                      short_name = 'a')
 gflags.DEFINE_integer('timeout', 300, 'Timeout in seconds.', lower_bound=0,
                       short_name = 't')
-gflags.DEFINE_string('logfile', 'experiment.log', 'Filename for experiment log.',
+gflags.DEFINE_string('debuglog', 'experiment.log',
+                     'Filename for experiment log.', short_name = 'd')
+gflags.DEFINE_string('logdir', None, 'Name of logfile directory.',
                      short_name = 'l')
+gflags.DEFINE_multistring('browsers', None, 'Browsers to use.', short_name = 'b')
 
+gflags.RegisterValidator('browsers',
+                         lambda names:
+                         not [name for name in names
+                              if name not in ['android', 'chrome', 'firefox']],
+                         message = 'Unknown browser.',
+                         flag_values=FLAGS)
 
 _IFACES = { 't-mobile' : 'usb0', # Android Phone
             'verizon' : 'eth1',  # iPhone
@@ -41,11 +42,6 @@ _IFACES = { 't-mobile' : 'usb0', # Android Phone
             'wired' : 'eth0'
             }
 
-_BROWSERS = [
-  # 'android',
-  'chrome',
-  'firefox'
-  ]
 
 _IFUP_PAUSE = 10
 _IFDOWN_PAUSE = 2
@@ -174,7 +170,7 @@ def main(argv):
     logging.error('%s\nUsage: %s ARGS\n%s' % (e, sys.argv[0], FLAGS))
     sys.exit(1)
 
-  logging.basicConfig(stream=sys.stdout, filename=FLAGS.logfile,
+  logging.basicConfig(stream=sys.stdout, filename=FLAGS.debuglog,
                       level=logging.INFO)
 
   if FLAGS.note:
@@ -192,7 +188,7 @@ def main(argv):
     domains = [to_fetch.pop() for i in range(10)]
 
     for carrier in carrier_list:
-      run_carrier(domains, carrier, _BROWSERS)
+      run_carrier(domains, carrier, FLAGS.browsers)
 
 if __name__ == '__main__':
   main(sys.argv)

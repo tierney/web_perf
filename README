@@ -5,6 +5,9 @@ Quick Setup:
   make setup # Lots of python action...
   source bin/activate # This should work if everything went well before.
   pip install -U selenium
+  pip install -U numpy
+  pip install -U matplotlib
+  pip install -U scikits.statsmodels
 
 Setting up the Python virtual environment:
 
@@ -25,6 +28,26 @@ o Android emulator must be launched and ready. Visit the following for more
       -n org.openqa.selenium.android.app/.MainActivity
 
   adb -s <serialId> forward tcp:8080 tcp:8080
+
+  ----
+
+  $./adb -s <serialId> shell am start -a android.intent.action.MAIN \
+       -n org.openqa.selenium.android.app/.MainActivity
+
+  You can start the application in debug mode, which has more verbose logs by
+  doing:
+
+  $./adb -s <serialId> shell am start -a android.intent.action.MAIN \
+       -n org.openqa.selenium.android.app/.MainActivity -e debug true
+
+  Now we need to setup the port forwarding in order to forward traffic from the
+  host machine to the emulator. In a terminal type:
+
+  $./adb -s <serialId> forward tcp:8080 tcp:8080
+
+  This will make the android server available at http://localhost:8080/wd/hub
+  from the host machine. You're now ready to run the tests. Let's take a look at
+  some code.
 
 References:
 
