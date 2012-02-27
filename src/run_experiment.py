@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import gflags
 import httplib
 import logging
 import os
@@ -11,7 +10,14 @@ import subprocess
 import sys
 import time
 import threading
+
+logging.basicConfig(
+  level=logging.DEBUG, stream=sys.stdout, filename='run_experiment.log',
+  format='%(asctime)-15s %(name)-5s %(levelname)-8s %(message)s')
+
+import gflags
 from Command import Command
+from LogCompressor import LogCompressor
 from selenium import webdriver
 
 _IFUP_PAUSE = 10
@@ -33,8 +39,6 @@ gflags.DEFINE_string('alexa', 'top-500-US.csv', 'Alexa CSV file to seed.',
                      short_name = 'a')
 gflags.DEFINE_integer('timeout', 300, 'Timeout in seconds.', lower_bound=0,
                       short_name = 't')
-gflags.DEFINE_string('debuglog', 'experiment.log',
-                     'Filename for experiment log.', short_name = 'd')
 gflags.DEFINE_string('sspath', None,
                      'Filepath of special ss', short_name = 's')
 gflags.DEFINE_string('logdir',
@@ -127,7 +131,7 @@ class Logger(object):
     if self.browser == 'chrome':
       to_kill = 'chromedriver'
     elif self.browser == 'firefox':
-      to_kill = 'firefox'
+      to_kill = '/usr/lib/firefox-10.0.2/firefox'
 
     command = Command('./BrowserRun.py --browser %s --domain %s' % \
                         (self.browser, self.domain))
@@ -206,9 +210,6 @@ def main(argv):
     logging.error('%s\nUsage: %s ARGS\n%s' % (e, sys.argv[0], FLAGS))
     sys.exit(1)
 
-  logging.basicConfig(stream=sys.stdout, filename=FLAGS.debuglog,
-                      level=logging.INFO)
-
   if FLAGS.note:
     logging.info(FLAGS.note)
   if FLAGS.debug:
@@ -225,6 +226,10 @@ def main(argv):
   except OSError:
     logging.error('Problem with logdir name.')
     return
+
+  log_compressor = LogCompressor(FLAGS.logdir)
+  log_compressor.daemon = True
+  log_compressor.start()
 
   while to_fetch:
     domains = [to_fetch.pop() for i in range(10)]

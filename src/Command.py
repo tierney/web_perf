@@ -33,17 +33,19 @@ class Command(object):
       logging.info('Terminating process')
       self.process.terminate()
       thread.join()
-    if pskill:
-      to_kill = subprocess.Popen('ps axo pid,cmd | grep %s' % pskill,
-                                 shell=True, stdout=subprocess.PIPE)
-      lines = [line.strip() for line in to_kill.stdout.readlines()]
-      for line in lines:
-        try:
-          pid, cmd = line.split()
-          os.kill(pid, signal.SIGKILL)
-        except OSError:
-          logging.error('pid already killed: (%s, %s).' % (line, cmd))
-        except ValueError, e:
-          logging.error('%s: %s.' % (str(e), line))
+
+      # Extra measure required when the target won't die.
+      if pskill:
+        to_kill = subprocess.Popen('ps axo pid,cmd | grep %s' % pskill,
+                                   shell=True, stdout=subprocess.PIPE)
+        lines = [line.strip() for line in to_kill.stdout.readlines()]
+        for line in lines:
+          try:
+            pid, cmd = line.split(maxsplit=1)
+            os.kill(pid, signal.SIGKILL)
+          except OSError:
+            logging.error('pid already killed: (%s, %s).' % (line, cmd))
+          except ValueError, e:
+            logging.error('%s: %s.' % (str(e), line))
 
     return self.process.returncode
