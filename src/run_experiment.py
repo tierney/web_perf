@@ -23,19 +23,12 @@ from selenium import webdriver
 _IFUP_PAUSE = 10
 _IFDOWN_PAUSE = 2
 
-# _BROWSERS_MAGIC_LIST = ['android', 'chrome', 'firefox']
-# _CARRIER_IFACES_MAGIC_DICT = { 't-mobile' : 'usb0', # Android Phone
-#                                'verizon' : 'eth1',  # iPhone
-#                                'wireless': 'wlan0',
-#                                'wired' : 'eth0'
-#                                }
-
 FLAGS = gflags.FLAGS
 
 gflags.DEFINE_boolean('debug', False, 'produces debugging output',
                       short_name = 'g')
 gflags.DEFINE_string('note', '', 'Note for the log.')
-gflags.DEFINE_string('alexa', 'top-500-US.csv', 'Alexa CSV file to seed.',
+gflags.DEFINE_string('alexa', './top-500-US.csv', 'Alexa CSV file to seed.',
                      short_name = 'a')
 gflags.DEFINE_integer('timeout', 300, 'Timeout in seconds.', lower_bound=0,
                       short_name = 't')
@@ -49,39 +42,6 @@ gflags.DEFINE_multistring('browsers', None, 'Browsers to use.', short_name = 'b'
 gflags.DEFINE_multistring('carrierifaces', None,
                           '"<carrier>,<iface>" string pair.',
                           short_name = 'c')
-
-# gflags.MarkFlagAsRequired('sspath')
-
-# TODO(tierney): These validators should be made more flexible, if not removed.
-
-# def validate_browsers(browsers):
-#   for browser in browsers:
-#     if browser not in _BROWSERS_MAGIC_LIST:
-#       return False
-#   return True
-
-# def validate_carrierifaces(carrierifaces):
-#   for carrieriface in carrierifaces:
-#     try:
-#       carrier, iface = carrieriface.split(',')
-#     except ValueError:
-#       return False
-
-#     if carrier not in _CARRIER_IFACES_MAGIC_DICT:
-#       print carrier
-#       return False
-
-#     expected_iface = _CARRIER_IFACES_MAGIC_DICT.get(carrier)
-#     if iface != expected_iface:
-#       return False
-#   return True
-
-# gflags.RegisterValidator('browsers', validate_browsers,
-#                          message = 'Unknown browser.', flag_values=FLAGS)
-# gflags.RegisterValidator('carrierifaces', validate_carrierifaces,
-#                          message = 'Unknown "<carrier>,<iface>" pair',
-#                          flag_values=FLAGS)
-
 
 class Logger(object):
   def __init__(self, carrier, interface, browser, domain):
@@ -224,7 +184,7 @@ def main(argv):
   if FLAGS.debug:
     logging.info('non-flag arguments:', argv)
 
-  alexa = AlexaFile('./top-500-US.csv')
+  alexa = AlexaFile(FLAGS.alexa)
   domains = alexa.domains_desc()
   to_fetch = domains
   to_fetch.reverse() # For faster list/stack pop().
