@@ -25,10 +25,10 @@ Laptop running experiment and graph/analysis code:
 Laptop running experiment:
 
 Probably all you want is this:
-o ./src/run_experiment.py -b chrome -b firefox -c t-mobile,usb0 -c wired,eth0
+o ./empirical/run_experiment.py -b chrome -b firefox -c t-mobile,usb0 -c wired,eth0
 
 If you're interested in receiver-side congestion window stuff:
-o ./src/run_experiment.py -b chrome -b firefox -c t-mobile,usb0 -c wired,eth0 --sspath ~/repos/fss/src/ss
+o ./empirical/run_experiment.py -b chrome -b firefox -c t-mobile,usb0 -c wired,eth0 --sspath ~/repos/fss/src/ss
 
 iperf (reverse NAT) server:
 
@@ -37,7 +37,7 @@ o Install the iperf program above. Note: this is NOT the standard iperf -- this
 
 o In a screen session, run the following command
 
-  ./src/run_iperf_reverse_server.py
+  ./empirical/run_iperf_reverse_server.py
 
 Selenium Setup:
 
