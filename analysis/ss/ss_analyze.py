@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
 import cPickle
+import logging
 import math
+import os
+import sys
 import time
 
 import gflags
@@ -15,31 +18,80 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-with open('conn_cwnd.pkl', 'r') as fh:
-  conn = cPickle.load(fh)
+FLAGS = gflags.FLAGS
+gflags.DEFINE_multistring('pickles', None, 'Pickle files "<data_type>.pkl"',
+                          short_name = 'p')
+gflags.DEFINE_string('label', None, 'Label for directory that will contain graphs.',
+                     short_name = 'l')
 
-# for i, four_tuple in enumerate(conn.keys()):
-for four_tuple in conn.keys()[24:25]:
-  # print i, four_tuple
+gflags.MarkFlagAsRequired('pickles')
+gflags.MarkFlagAsRequired('label')
+
+def four_tuple_to_filename(four_tuple):
+  return '_'.join([pair.replace(':','_') for pair in four_tuple])
+
+def plot(data_type, path, four_tuple, conn):
+  print four_tuple
 
   x = [float(l[0]) for l in conn[four_tuple]]
   for i, entry in enumerate(conn[four_tuple]):
     x[i] += (1.e-9 * int(entry[1]))
-  cwnds = [l[2] for l in conn[four_tuple]]
+  data = [l[2] for l in conn[four_tuple]]
+
   x = [matplotlib.dates.epoch2num(entry) for entry in x]
 
-  assert(len(x) == len(cwnds))
-  print len(x)
-  fig = plt.figure(1, figsize=(10,6))
-  lower_limit = 10
-  upper_limit = -1
-  plt.plot_date(x[lower_limit:upper_limit], cwnds[lower_limit:upper_limit], tz='EST')
-  fig.savefig('plot' + '.png')
+  assert(len(x) == len(data))
 
-  with open('plot.log','w') as fh:
-    for i, entry in enumerate(x):
-      fh.write('%f %s\n' % (entry, cwnds[i]))
-  # keys = {}
-  # for e in cwnds:
-  #   keys[e] = 1
-  # print four_tuple, keys.keys()
+  print len(x)
+  plt.clf()
+  fig = plt.figure(1, figsize=(8,6))
+
+  plt.xlabel('Timestamp', fontsize='x-small')
+  plt.ylabel(data_type, fontsize='x-small')
+
+  # Plot formatting issues.
+  plt.rc("axes", linewidth=2.0)
+  fontsize = 'x-small'
+  ax = plt.gca()
+  for tick in ax.xaxis.get_major_ticks():
+    tick.label1.set_fontsize(fontsize)
+  for tick in ax.yaxis.get_major_ticks():
+    tick.label1.set_fontsize(fontsize)
+
+  lower_limit = 1
+  upper_limit = -1
+
+  plt.plot_date(x[lower_limit:upper_limit], data[lower_limit:upper_limit])
+  fig.savefig(os.path.join(os.path.join(FLAGS.label, data_type),
+                           four_tuple_to_filename(four_tuple) + '.png'),
+              bbox_inches='tight')
+
+  def average(values):
+    if not values:
+      return 0
+    return sum(values, 0.0) / len(values)
+  print 'avg: %f' % average([float(i) for i in data[lower_limit:upper_limit]])
+
+def main(argv):
+  try:
+    argv = FLAGS(argv)  # parse flags
+  except gflags.FlagsError, e:
+    logging.error('%s\nUsage: %s ARGS\n%s' % (e, sys.argv[0], FLAGS))
+    sys.exit(1)
+
+  os.mkdir(FLAGS.label)
+
+  for pickle_path in FLAGS.pickles:
+    logging.info('Processing: %s.' % pickle_path)
+    path, pickle_name = os.path.split(pickle_path)
+    data_type = pickle_name.rstrip('.pkl')
+    os.mkdir(os.path.join(FLAGS.label, data_type))
+
+    with open(pickle_path) as fh:
+      conn = cPickle.load(fh)
+
+    for four_tuple in conn.keys():
+      plot(data_type, path, four_tuple, conn)
+
+if __name__=='__main__':
+  main(sys.argv)

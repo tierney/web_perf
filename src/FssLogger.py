@@ -33,6 +33,7 @@ class FssLogger(threading.Thread):
     except KeyboardInterrupt:
       logging.info('Done.')
       subprocess.call(['gzip', FLAGS.filename])
+      print 'gzipped log filename:\n%s' % (FLAGS.filename + '.gz')
     ss_log_fh.close()
 
 def main(argv):
@@ -44,8 +45,6 @@ def main(argv):
 
   fss = FssLogger(FLAGS.sspath, FLAGS.filename)
   fss.run()
-
-
 
 if __name__=='__main__':
   main(sys.argv)
