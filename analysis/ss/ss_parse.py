@@ -64,7 +64,7 @@ def main(argv):
       if tcp_4tuple not in conn_cwnd:
         conn_cwnd[tcp_4tuple] = []
       try:
-        sec, nsec = realtime.split('\t')
+        ts_type, sec, nsec = realtime.split('\t')
       except ValueError, e:
         logging.error('%s: %s.' % (str(e), realtime))
         sys.exit(1)
