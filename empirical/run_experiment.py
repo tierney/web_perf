@@ -158,7 +158,8 @@ def run_carrier(domains, carriers, carrier, interface, browser_list):
 
   # Do iface throughput check.
   timestamp = time.strftime('%Y_%m_%d_%H_%M_%S') # str(time.time())
-  pcap_name = '%s_%s_%s_%s_%s.pcap' % (carrier, 'NA', 'NA', timestamp, ss_uuid)
+  pcap_name = '%s_%s_%s_%s_%s.client.pcap' % \
+      (carrier, 'NA', 'NA', timestamp, ss_uuid)
   pcap_path = os.path.join(FLAGS.logdir, pcap_name)
   pcap = subprocess.Popen(['tcpdump', '-i', '%s' % interface, '-w', pcap_path])
 
