@@ -157,17 +157,26 @@ def run_carrier(domains, carriers, carrier, interface, browser_list):
   pcap_path = os.path.join(FLAGS.logdir, pcap_name)
   pcap = subprocess.Popen(['tcpdump', '-i', '%s' % interface, '-w', pcap_path])
 
-  time.sleep(2)
+  # Start logging ss and tcpdump on the server.
+  c = Client(FLAGS.host, FLAGS.port, 'begin')
+  c.run()
+
   iperf_name = '%s_%s.iperf.log' % (timestamp, carrier)
   iperf_path = os.path.join(FLAGS.logdir, iperf_name)
   iperf_fh = open(iperf_path, 'w')
   iperf = subprocess.Popen(['iperf', '-c', 'theseus.news.cs.nyu.edu',
-                            '--reverse'], stdout=iperf_fh, stderr=iperf_fh)
-  time.sleep(50)
-  # iperf.wait()
+                            '--reverse'], stdout = iperf_fh, stderr = iperf_fh)
+
+  # Wait for iperf to run to completion.
+  time.sleep(55) # iperf.wait()
+
+  # Cleanup.
   iperf.terminate()
   iperf_fh.flush()
   iperf_fh.close()
+  # End logging ss and tcpdump on the server.
+  c = Client(FLAGS.host, FLAGS.port, 'end')
+  c.run()
   pcap.terminate()
 
   # Run through the domains.

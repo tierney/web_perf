@@ -44,7 +44,7 @@ def main(argv):
 
   c = Client(FLAGS.host, FLAGS.port, FLAGS.command)
   c.run()
-  print 'hello'
+
 
 if __name__=='__main__':
   main(sys.argv)
