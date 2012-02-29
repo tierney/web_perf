@@ -1,8 +1,13 @@
+#!/usr/bin/env python
+
+import sys
+
 import ns.applications
 import ns.core
 import ns.internet
 import ns.network
 import ns.point_to_point
+import ns.visualizer
 
 ns.core.LogComponentEnable("UdpEchoClientApplication", ns.core.LOG_LEVEL_INFO)
 ns.core.LogComponentEnable("UdpEchoServerApplication", ns.core.LOG_LEVEL_INFO)
@@ -39,5 +44,9 @@ clientApps = echoClient.Install(nodes.Get(0))
 clientApps.Start(ns.core.Seconds(2.0))
 clientApps.Stop(ns.core.Seconds(10.0))
 
+cmd = ns.core.CommandLine()
+cmd.Parse(sys.argv)
+
 ns.core.Simulator.Run()
 ns.core.Simulator.Destroy()
+
