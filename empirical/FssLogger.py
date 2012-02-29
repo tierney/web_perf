@@ -39,8 +39,9 @@ class FssLogger(threading.Thread):
 
   def run(self):
     ss_log_fh = open(self.filename,'w')
-    tcpdump_log = subprocess.Popen(['tcpdump','-i','any','-n','-w',
-                                    self.filename.replace('.ss.log','.pcap')])
+    tcpdump_log = subprocess.Popen(
+      ['tcpdump','-i','any','-n','-w',
+       self.filename.replace('.ss.log','.server.pcap')])
     ss_log = subprocess.Popen([self.sspath,'-g'], stdout = ss_log_fh)
 
     while True:
