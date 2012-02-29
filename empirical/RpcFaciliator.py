@@ -20,8 +20,9 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
   rpc_paths = ('/RPC2',)
 
 class FileSignalWriter:
-  def begin(self):
-    with open('BEGIN','w') as fh: pass
+  def begin(self, uuid):
+    with open('BEGIN','w') as fh:
+      fh.write(uuid)
     return True
 
   def end(self):

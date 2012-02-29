@@ -20,12 +20,16 @@ gflags.MarkFlagAsRequired('sspath')
 def status_files():
   files = os.listdir('.')
   retval = None
-  if 'BEGIN' in files: retval ='BEGIN'
+  uuid = None
+  if 'BEGIN' in files:
+    with open('BEGIN') as fh:
+      uuid = fh.read()
+    retval = 'BEGIN'
   if 'END' in files: retval = 'END'
   if 'HALT' in files: retval = 'HALT'
 
   if retval: os.remove(retval)
-  return retval
+  return retval, uuid
 
 class FssLogger(threading.Thread):
   def __init__(self, sspath, filename):
@@ -44,6 +48,7 @@ class FssLogger(threading.Thread):
       status = status_files()
       if not status:
         continue
+      status, uuid = status
       if 'END' == status:
         break
 
@@ -66,9 +71,13 @@ def main(argv):
   while True:
     time.sleep(1)
     status = status_files()
+    if not status: continue
+    status, uuid = status
     if 'BEGIN' == status:
       fss = FssLogger(FLAGS.sspath,
-                      time.strftime('%Y_%m_%d_%H_%M_%S') + '.ss.log')
+                      time.strftime('%Y_%m_%d_%H_%M_%S')
+                      + '_%s' % uuid
+                      + '.ss.log')
       fss.run()
     if 'HALT' == status:
       break

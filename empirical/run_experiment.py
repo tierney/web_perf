@@ -10,12 +10,14 @@ import subprocess
 import sys
 import time
 import threading
+import uuid
 
 logging.basicConfig(
   stream=sys.stdout, level=logging.DEBUG, filename='run_experiment.log',
   format='%(asctime)-15s %(name)-5s %(levelname)-8s %(message)s')
 
 import gflags
+from RpcClient import Client
 from Command import Command
 from LogCompressor import LogCompressor
 from selenium import webdriver
@@ -48,6 +50,7 @@ gflags.DEFINE_multistring('carrierifaces', None,
 
 gflags.MarkFlagAsRequired('host')
 gflags.MarkFlagAsRequired('port')
+gflags.MarkFlagAsRequired('browsers')
 
 class Logger(object):
   def __init__(self, carrier, interface, browser, domain):
@@ -151,14 +154,17 @@ def run_carrier(domains, carriers, carrier, interface, browser_list):
   logging.info('Switching interfaces for %s.' % (carrier))
   prepare_ifaces(carriers, carrier, interface)
 
+  ss_uuid = str(uuid.uuid4())
+
   # Do iface throughput check.
-  timestamp = str(time.time())
-  pcap_name = '%s_%s_%s_%s.pcap' % (carrier, 'NA', 'NA', timestamp)
+  timestamp = time.strftime('%Y_%m_%d_%H_%M_%S') # str(time.time())
+  pcap_name = '%s_%s_%s_%s_%s.pcap' % (carrier, 'NA', 'NA', timestamp, ss_uuid)
   pcap_path = os.path.join(FLAGS.logdir, pcap_name)
   pcap = subprocess.Popen(['tcpdump', '-i', '%s' % interface, '-w', pcap_path])
 
   # Start logging ss and tcpdump on the server.
-  c = Client(FLAGS.host, FLAGS.port, 'begin')
+  logging.debug('Starting ss and tcpdump on server.')
+  c = Client(FLAGS.host, FLAGS.port, 'begin', ss_uuid)
   c.run()
 
   iperf_name = '%s_%s.iperf.log' % (timestamp, carrier)
