@@ -14,9 +14,6 @@ import gflags
 FLAGS = gflags.FLAGS
 
 gflags.DEFINE_string('sspath', None, 'Location of fss ss.', short_name = 's')
-gflags.DEFINE_string('filename',
-                     time.strftime('%Y_%m_%d_%H_%M_%S') + '.ss.log',
-                     'ss log file.', short_name = 'f')
 
 gflags.MarkFlagAsRequired('sspath')
 
@@ -54,8 +51,8 @@ class FssLogger(threading.Thread):
     ss_log.terminate()
     tcpdump_log.terminate()
     logging.info('Done.')
-    subprocess.call(['gzip', FLAGS.filename])
-    print 'gzipped log filename:\n%s' % (FLAGS.filename + '.gz')
+    subprocess.call(['gzip', self.filename])
+    print 'gzipped log filename:\n%s' % (self.filename + '.gz')
     print 'pcap file:\n%s' % (self.filename.replace('.ss.log','.pcap'))
     ss_log_fh.close()
 
@@ -70,7 +67,8 @@ def main(argv):
     time.sleep(1)
     status = status_files()
     if 'BEGIN' == status:
-      fss = FssLogger(FLAGS.sspath, FLAGS.filename)
+      fss = FssLogger(FLAGS.sspath,
+                      time.strftime('%Y_%m_%d_%H_%M_%S') + '.ss.log')
       fss.run()
     if 'HALT' == status:
       break
