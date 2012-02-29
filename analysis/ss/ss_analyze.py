@@ -97,15 +97,16 @@ def plot_twinx(label, path, four_tuple, conn0, conn1, conn2):
   line0 = ax0.plot_date(x0[lower_limit:upper_limit], data0[lower_limit:upper_limit],'b.-', label=label0)
   ax1 = ax0.twinx()
   line1 = ax1.plot_date(x1[lower_limit:upper_limit], data1[lower_limit:upper_limit],'r.-', label=label1)
-  line1 = ax1.plot_date(x2[lower_limit:upper_limit], data2[lower_limit:upper_limit],'g.-', label=label2)
+  line2 = ax1.plot_date(x2[lower_limit:upper_limit], data2[lower_limit:upper_limit],'g.-', label=label2)
 
-  lines = line0 + line1
+  lines = line0 + line1 + line2
   labels = [l.get_label() for l in lines]
   ax0.legend(lines, labels, loc='upper left')
   ax0.grid()
   ax0.set_xlabel('Timestamp', fontsize=fontsize)
   ax0.set_ylabel(label0, fontsize=fontsize)
   ax1.set_ylabel(label1, fontsize=fontsize)
+  ax1.set_ylabel(label2, fontsize=fontsize)
 
   for tick in ax0.xaxis.get_major_ticks():
     tick.label1.set_fontsize(fontsize)
@@ -127,6 +128,7 @@ def main(argv):
     sys.exit(1)
 
   # os.mkdir(FLAGS.label)
+
   # for pickle_path in FLAGS.pickles:
   #   logging.info('Processing: %s.' % pickle_path)
   #   path, pickle_name = os.path.split(pickle_path)
@@ -140,13 +142,16 @@ def main(argv):
   #     plot(data_type, path, four_tuple, conn)
 
   if FLAGS.joint:
-    pickle_path0, pickle_path1 = FLAGS.joint.split(',')
+    pickle_path0, pickle_path1, pickle_path2 = FLAGS.joint.split(',')
     with open(pickle_path0) as fh:
       conn0 = cPickle.load(fh)
     with open(pickle_path1) as fh:
       conn1 = cPickle.load(fh)
+    with open(pickle_path2) as fh:
+      conn2 = cPickle.load(fh)
     path0, pickle_name0 = os.path.split(pickle_path0)
     path1, pickle_name1 = os.path.split(pickle_path1)
+    path2, pickle_name2 = os.path.split(pickle_path1)
     assert path0 == path1
 
     label = FLAGS.joint.replace('.pkl','')
@@ -155,11 +160,11 @@ def main(argv):
     except OSError:
       pass
 
-    print conn0.keys()
-    print conn1.keys()
+    # print conn0.keys()
+    # print conn1.keys()
     # assert conn0.keys() == conn1.keys()
     for four_tuple in conn0.keys():
-      plot_twinx(label, path0, four_tuple, conn0, conn1)
+      plot_twinx(label, path0, four_tuple, conn0, conn1, conn2)
 
 if __name__=='__main__':
   main(sys.argv)

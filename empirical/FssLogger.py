@@ -28,12 +28,18 @@ class FssLogger(threading.Thread):
   def run(self):
     ss_log_fh = open(self.filename,'w')
     try:
+      tcpdump_log = subprocess.Popen(['tcpdump','-n','-w',
+                                      self.filename.replace('.ss.log','.pcap')])
       ss_log = subprocess.Popen([self.sspath,'-g'], stdout = ss_log_fh)
       ss_log.wait()
     except KeyboardInterrupt:
+      ss_log_fh.flush()
+      ss_log.terminate()
+      tcpdump_log.terminate()
       logging.info('Done.')
       subprocess.call(['gzip', FLAGS.filename])
       print 'gzipped log filename:\n%s' % (FLAGS.filename + '.gz')
+      print 'pcap file:\n%s' % (self.filename.replace('.ss.log','.pcap'))
     ss_log_fh.close()
 
 def main(argv):
