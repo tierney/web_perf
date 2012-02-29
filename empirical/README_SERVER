@@ -1,0 +1,13 @@
+To run a server for the iperf experiments, you must setup:
+
+o Reverse iperf watchdog
+
+  ./run_iperf_reverse_server.py -i ~/repos/iperf/src/iperf
+
+o RPC Faciliator (receives RPC client requests that signal the FssLogger).
+
+  ./RpcFaciliator.py
+
+o FssLogger
+
+  sudo ./FssLogger.py -s ~/repos/fss/src/ss
