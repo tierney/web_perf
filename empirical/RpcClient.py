@@ -22,15 +22,15 @@ gflags.RegisterValidator(
 gflags.MarkFlagAsRequired('host')
 gflags.MarkFlagAsRequired('port')
 
-class Client(threading.Thread):
+class Client():
   def __init__(self, host, port, command):
     self.host = host
     self.port = port
     self.command = command
-    threading.Thread.__init__(self)
 
   def run(self):
-    proxy = xmlrpclib.ServerProxy('http://%s:%s' % (self.host, self.port))
+    proxy = xmlrpclib.ServerProxy('http://%s:%s' % (self.host, self.port),
+                                  allow_none = True)
     if 'begin' == self.command: proxy.begin()
     if 'end' == self.command: proxy.end()
     if 'halt' == self.command: proxy.halt()
@@ -43,7 +43,8 @@ def main(argv):
     sys.exit(1)
 
   c = Client(FLAGS.host, FLAGS.port, FLAGS.command)
-  c.start()
+  c.run()
+  print 'hello'
 
 if __name__=='__main__':
   main(sys.argv)

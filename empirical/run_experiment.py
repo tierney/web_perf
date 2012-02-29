@@ -32,16 +32,22 @@ gflags.DEFINE_string('alexa', './top-500-US.csv', 'Alexa CSV file to seed.',
                      short_name = 'a')
 gflags.DEFINE_integer('timeout', 300, 'Timeout in seconds.', lower_bound=0,
                       short_name = 't')
-gflags.DEFINE_string('sspath', None,
-                     'Filepath of special ss', short_name = 's')
-gflags.DEFINE_string('logdir',
-                     time.strftime('%Y_%m_%d_%H_%M_%S',
-                                   time.gmtime(time.time())),
+gflags.DEFINE_string('sspath', None, 'Filepath of special ss', short_name = 's')
+gflags.DEFINE_string('logdir', time.strftime('%Y_%m_%d_%H_%M_%S',
+                                             time.gmtime(time.time())),
                      'Name of logfile directory.', short_name = 'l')
-gflags.DEFINE_multistring('browsers', None, 'Browsers to use.', short_name = 'b')
+gflags.DEFINE_string('host', None, 'host address for iperf and rpc',
+                     short_name = 'h')
+gflags.DEFINE_string('port', None, 'port for rpc experiment requests',
+                     short_name = 'p')
+gflags.DEFINE_multistring('browsers', None, 'Browsers to use.',
+                          short_name = 'b')
 gflags.DEFINE_multistring('carrierifaces', None,
                           '"<carrier>,<iface>" string pair.',
                           short_name = 'c')
+
+gflags.MarkFlagAsRequired('host')
+gflags.MarkFlagAsRequired('port')
 
 class Logger(object):
   def __init__(self, carrier, interface, browser, domain):
@@ -71,6 +77,7 @@ class Logger(object):
     self.kill_tcp_processes()
 
     logging.info('Starting sniffers.')
+
     if FLAGS.sspath:
       ss_log_name = '%s_%s_%s_%s.ss.log' % \
                      (self.carrier, self.browser, self.domain, str(time.time()))

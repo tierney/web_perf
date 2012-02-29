@@ -22,9 +22,11 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 class FileSignalWriter:
   def begin(self):
     with open('BEGIN','w') as fh: pass
+    return True
 
   def end(self):
     with open('END','w') as fh: pass
+    return True
 
   def halt(self):
     with open('HALT','w') as fh: pass
@@ -39,7 +41,8 @@ def main(argv):
 
   # Create server
   server = SimpleXMLRPCServer((FLAGS.host, FLAGS.port),
-                              requestHandler=RequestHandler)
+                              requestHandler=RequestHandler,
+                              allow_none = True)
   server.register_introspection_functions()
 
   server.register_instance(FileSignalWriter())
