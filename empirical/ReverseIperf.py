@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import logging
 import shlex
 import subprocess
 import sys
@@ -27,20 +28,20 @@ def main(argv):
 
   uuid = str(uuid4())
 
-  RpcClient(FLAGS.host, FLAGS.port, 'begin', uuid).run()
+  Client(FLAGS.host, FLAGS.port, 'begin', uuid).run()
 
   tcpdump_cmd = 'tcpdump -n -i any -w %s.client.pcap' % uuid
   tcpdump_args = shlex.split(tcpdump_cmd)
   tcpdump_popen = subprocess.Popen(tcpdump_args)
 
-  iperf_cmd = "%s --reverse -c %h %s" % (FLAGS.iperf, FLAGS.iperfopts)
-  iperf_args = shlex.split(iperf_cmd)
-  iperf_popen = subprocess.Popen(iperf_args)
+  # iperf_cmd = "%s --reverse -c %h -w 1M" % (FLAGS.iperf, FLAGS.host)
+  # iperf_args = shlex.split(iperf_cmd)
+  iperf_popen = subprocess.Popen([FLAGS.iperf, '--reverse', '-c', FLAGS.host])
   iperf_popen.wait()
 
   tcpdump_popen.terminate()
 
-  RpcClient(FLAGS.host, FLAGS.port, 'end', uuid).run()
+  Client(FLAGS.host, FLAGS.port, 'end').run()
 
 if __name__=='__main__':
   main(sys.argv)
