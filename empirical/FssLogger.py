@@ -57,6 +57,8 @@ class FssLogger(threading.Thread):
     ss_log.terminate()
     tcpdump_log.terminate()
     logging.info('Done.')
+
+    logging.info('Zipping logs.')
     subprocess.call(['bzip2', self.filename])
     subprocess.call(['bzip2', self.filename.replace('.ss.log','.server.pcap')])
     print 'gzipped log filename:\n%s' % (self.filename + '.bz2')
