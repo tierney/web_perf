@@ -36,20 +36,25 @@ proc monitor {interval} {
 
 #Create three nodes
 set theseus [$ns node]
+set beaker [$ns node]
 set operator [$ns node]
+set tower [$ns node]
 set mobile [$ns node]
 
-$ns duplex-link $theseus $operator 10Mb 10ms DropTail
-$ns duplex-link $operator $mobile 300Kb 1000ms DropTail
+$ns duplex-link $theseus $beaker 100Mb 1ms DropTail
+$ns duplex-link $beaker $operator 10Mb 50ms DropTail
+$ns duplex-link $operator $tower 100Mb 5ms DropTail
+$ns duplex-link $tower $mobile 300Kb 250ms DropTail
 
-$ns queue-limit $theseus $operator 20
-$ns queue-limit $operator $mobile 220
+# $ns queue-limit $beaker $operator 10
+$ns queue-limit $operator $tower 10
+$ns queue-limit $tower $mobile 7
 
 # $ns duplex-link-op $theseus $mobile orient right-down
-$ns duplex-link-op $operator $mobile orient right-up
+# $ns duplex-link-op $tower $mobile orient right-up
 
 # Monitor the queue for link (theseus-operator). (for NAM)
-$ns duplex-link-op $theseus $operator queuePos 0.5
+$ns duplex-link-op $operator $tower queuePos 0.5
 
 #Setup a TCP connection
 set tcp [new Agent/TCP/Linux]
@@ -77,7 +82,6 @@ $ns at 0 "monitor 0.1"
 
 #Call the finish procedure after 5 seconds of simulation time
 $ns at 45.1 "finish"
-
 
 #Run the simulation
 $ns run
