@@ -27,6 +27,8 @@ $ns color 1 Blue
 global nf
 set nf [open out.nam w]
 $ns namtrace-all $nf
+set tracefd [open out.trace w]
+$ns trace-all $tracefd
 
 #Define a 'finish' procedure
 proc finish {} {
@@ -62,14 +64,16 @@ set operator [$ns node]
 set tower [$ns node]
 set mobile [$ns node]
 
-$ns duplex-link $theseus $beaker 100Mb .1ms DropTail
-$ns duplex-link $beaker $level3 100Mb 30ms DropTail
-$ns duplex-link $level3 $operator 1Gb 5ms DropTail
+$ns duplex-link $theseus $operator 1Gb 3ms DropTail
 $ns duplex-link $operator $tower 1Gb 1ms DropTail
-$ns duplex-link $tower $mobile 300Kb 300ms DropTail
+$ns duplex-link $tower $mobile 200Kb 10ms DropTail
 
-$ns queue-limit $operator $tower $opt(ot)
+# Queue-limits
+$ns queue-limit $tower $operator $opt(ot)
+$ns queue-limit $operator $tower $opt(tm)
+
 $ns queue-limit $tower $mobile $opt(tm)
+
 
 # $ns duplex-link-op $theseus $mobile orient right-down
 # $ns duplex-link-op $tower $mobile orient right-up
@@ -92,27 +96,16 @@ $tcp set window_ 1000
 set ftp [new Application/FTP]
 $ftp attach-agent $tcp
 $ftp set type_ FTP
-$ftp set interval_ 0.00001
-$ftp set packetSize_ 500
-
-# set loss_random_variable [new RandomVariable/Uniform]
-# $loss_random_variable set min_ 0 # set the range of the random variable;
-# $loss_random_variable set max_ 100
 
 # # create the error model;
 set loss_module [new ErrorModel]
+
 # # set error rate to \(0.1 = 10 / (100 - 0)\);
 $loss_module set rate_ 0
 $loss_module unit packet
 $loss_module drop-target [new Agent/Null]
 set lossyLink [$ns link $tower $mobile]
 $lossyLink install-error $loss_module
-# # attach random var. to loss module;
-# $loss_module ranvar $loss_random_variable
-
-# keep a handle to the loss module;
-# set sessionhelper [$ns create-session $tcp $tower]
-# $ns at 0.1 "$sessionhelper insert-depended-loss $loss_module $mobile"
 
 $ns at 0.1 "$ftp start"
 $ns at 45.0 "$ftp stop"

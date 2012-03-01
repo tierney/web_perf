@@ -16,11 +16,11 @@ class LogCompressor(threading.Thread):
     while True:
       files = os.listdir(self.directory)
       for filename in files:
-        if filename.endswith('.ss.log'):
+        if filename.endswith('.ss.log') or filename.endswith('.pcap'):
           new_files = True
           to_compress = os.path.join(self.directory, filename)
           logging.info('Compressing %s.' % to_compress)
-          subprocess.call(['gzip', to_compress])
+          subprocess.call(['bzip2', to_compress])
       if new_files:
         new_files = False
       time.sleep(1)

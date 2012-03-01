@@ -18,6 +18,8 @@ import matplotlib.dates as mdates
 FLAGS = gflags.FLAGS
 gflags.DEFINE_string('ot', None, 'operator to tower queue')
 gflags.DEFINE_string('tm', None, 'tower to mobile queue')
+gflags.DEFINE_string('plotname', 'plot.png',
+                     'Name of output plot, including file extension.')
 gflags.MarkFlagAsRequired('ot')
 gflags.MarkFlagAsRequired('tm')
 
@@ -30,8 +32,10 @@ def main(argv):
 
   if os.path.exists('result0'):
     os.remove('result0')
-  popen = subprocess.Popen(['ns','ns-bufferbloat.tcl','-ot',
-                            FLAGS.ot,'-tm',FLAGS.tm])
+  popen = subprocess.Popen(['ns','ns-bufferbloat.tcl',
+                            '-ot',FLAGS.ot,
+                            '-tm',FLAGS.tm,
+                            ])
   popen.wait()
   with open('result0') as fh:
     data = [line.strip() for line in fh.readlines()]
@@ -58,7 +62,7 @@ def main(argv):
   labels = [l.get_label() for l in lines]
   ax0.legend(lines, labels, loc='upper left')
   ax0.grid()
-  ax0.set_title('ot: %s. tm: %s' % (FLAGS.ot, FLAGS.tm))
+  ax0.set_title('%s %s' % (FLAGS.ot, FLAGS.tm))
   ax0.set_xlim(0,45)
   ax0.set_ylim(0,400)
   ax0.set_xlabel('Timestamp', fontsize=fontsize)
@@ -72,7 +76,7 @@ def main(argv):
   for tick in ax1.get_yticklabels():
     tick.set_fontsize(fontsize)
 
-  fig.savefig('%s_%s.png' % (FLAGS.ot, FLAGS.tm),bbox_inches='tight')
+  fig.savefig(FLAGS.plotname, bbox_inches='tight')
 
 if __name__=='__main__':
   main(sys.argv)

@@ -2,6 +2,7 @@
 
 import cPickle
 import gzip
+import bz2
 import logging
 import re
 import sys
@@ -13,6 +14,7 @@ FLAGS = gflags.FLAGS
 
 gflags.DEFINE_string('filename', None, 'ss log file.', short_name = 's')
 gflags.DEFINE_boolean('gzipped', False, 'ss log is gzipped', short_name = 'z')
+gflags.DEFINE_boolean('bzipped', False, 'ss log is bzipped', short_name = 'j')
 
 gflags.MarkFlagAsRequired('filename')
 
@@ -53,6 +55,8 @@ def main(argv):
 
   if FLAGS.gzipped:
     open_func = gzip.open
+  elif FLAGS.bzipped:
+    open_func = bz2.open
   else:
     open_func = open
 
