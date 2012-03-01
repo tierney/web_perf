@@ -1,7 +1,15 @@
 set term png
+# set lmargin 10
+# set bmargin 3
+# set rmargin 2
+# set tmargin 1
 set out "cwnd.png"
 set xrange [0:45]
-# set yrange [0:2500]
-plot "result0" u 1:2 w li
+# set yrange [0:100]
+# set y2range[0:100]
+set ytics nomirror
+set y2tics 0,10
+plot "result0" u 1:2 w li axis x1y1, "result0" u 1:4 w li axis x1y2
+
 
 
