@@ -41,7 +41,7 @@ class Command(object):
         lines = [line.strip() for line in to_kill.stdout.readlines()]
         for line in lines:
           try:
-            pid, cmd = line.split(maxsplit=1)
+            pid, cmd = line.split(' ', 1)
             os.kill(pid, signal.SIGKILL)
           except OSError:
             logging.error('pid already killed: (%s, %s).' % (line, cmd))

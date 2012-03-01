@@ -131,6 +131,8 @@ class AlexaFile(object):
 
 
 def prepare_ifaces(carriers, carrier, interface):
+  global _CARRIER_IFACES_MAGIC_DICT
+
   for carr in carriers:
     if carr == carrier:
       continue
@@ -156,31 +158,42 @@ def run_carrier(domains, carriers, carrier, interface, browser_list):
 
   ss_uuid = str(uuid.uuid4())
 
-  # Do iface throughput check.
+  # Start logging ss and tcpdump on the server (implicitly test reachability).
+  logging.debug('Starting ss and tcpdump on server.')
+  attempts = 0
+  while True:
+    try:
+      attempts += 1
+      c = Client(FLAGS.host, FLAGS.port, 'begin', ss_uuid)
+      c.run()
+      break
+    except socket.error:
+      # What do we do if we can't start the test.
+      logging.error('Unable to reach %s : %s. (Attempt: %d).' % \
+                      (FLAGS.host, FLAGS.port, attempts))
+
+  # Start logging locally.
   timestamp = time.strftime('%Y_%m_%d_%H_%M_%S') # str(time.time())
   pcap_name = '%s_%s_%s_%s_%s.client.pcap' % \
       (carrier, 'NA', 'NA', timestamp, ss_uuid)
   pcap_path = os.path.join(FLAGS.logdir, pcap_name)
   pcap = subprocess.Popen(['tcpdump', '-i', '%s' % interface, '-w', pcap_path])
 
-  # Start logging ss and tcpdump on the server.
-  logging.debug('Starting ss and tcpdump on server.')
-  c = Client(FLAGS.host, FLAGS.port, 'begin', ss_uuid)
-  c.run()
-
+  # Initiate iperf test.
   iperf_name = '%s_%s.iperf.log' % (timestamp, carrier)
   iperf_path = os.path.join(FLAGS.logdir, iperf_name)
   iperf_fh = open(iperf_path, 'w')
-  iperf = subprocess.Popen(['iperf', '-c', 'theseus.news.cs.nyu.edu',
+  iperf = subprocess.Popen(['iperf', '-c', FLAGS.host,
                             '--reverse'], stdout = iperf_fh, stderr = iperf_fh)
 
   # Wait for iperf to run to completion.
-  time.sleep(55) # iperf.wait()
+  time.sleep(55) # iperf.wait() is unreliable since path might break.
 
   # Cleanup.
   iperf.terminate()
   iperf_fh.flush()
   iperf_fh.close()
+
   # End logging ss and tcpdump on the server.
   c = Client(FLAGS.host, FLAGS.port, 'end')
   c.run()
@@ -225,10 +238,13 @@ def main(argv):
 
   carriers = []
   ifaces = []
+  global _CARRIER_IFACES_MAGIC_DICT
+  _CARRIER_IFACES_MAGIC_DICT = {}
   for carrieriface in FLAGS.carrierifaces:
     carrier, interface = carrieriface.split(',')
     carriers.append(carrier)
     ifaces.append(interface)
+    _CARRIER_IFACES_MAGIC_DICT[carrier] = interface
 
   while to_fetch:
     domains = [to_fetch.pop() for i in range(10)]
