@@ -24,20 +24,21 @@ set ns [new Simulator]
 $ns color 1 Blue
 
 # Open the NAM trace file
-
-# set nf [open out.nam w]
-# $ns namtrace-all $nf
-
+global nf
+set nf [open out.nam w]
+$ns namtrace-all $nf
 
 #Define a 'finish' procedure
 proc finish {} {
-    global ns
+    global ns nf opt
     # nf
     $ns flush-trace
     #Close the NAM trace file
-    #close $nf
+    close $nf
     #Execute NAM on the trace file
-    # exec nam out.nam &
+    if {$opt(nam)} {
+        exec nam out.nam &
+    }
     exit 0
 }
 
@@ -56,16 +57,17 @@ proc monitor {interval} {
 # Create nodes.
 set theseus [$ns node]
 set beaker [$ns node]
+set level3 [$ns node]
 set operator [$ns node]
 set tower [$ns node]
 set mobile [$ns node]
 
 $ns duplex-link $theseus $beaker 100Mb .1ms DropTail
-$ns duplex-link $beaker $operator 10Mb 50ms DropTail
-$ns duplex-link $operator $tower 100Mb 10ms DropTail
-$ns duplex-link $tower $mobile 300Kb 250ms DropTail
+$ns duplex-link $beaker $level3 100Mb 30ms DropTail
+$ns duplex-link $level3 $operator 1Gb 5ms DropTail
+$ns duplex-link $operator $tower 1Gb 1ms DropTail
+$ns duplex-link $tower $mobile 300Kb 300ms DropTail
 
-$ns queue-limit $beaker $operator 200
 $ns queue-limit $operator $tower $opt(ot)
 $ns queue-limit $tower $mobile $opt(tm)
 
