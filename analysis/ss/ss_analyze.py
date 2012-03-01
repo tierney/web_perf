@@ -18,6 +18,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
+matplotlib.rcParams['legend.fontsize'] = 'x-small'
+
 FLAGS = gflags.FLAGS
 gflags.DEFINE_multistring('pickles', None, 'pickle files "<data_type>.pkl"',
                           short_name = 'p')
@@ -81,9 +83,13 @@ def xy_from_conn(conn, four_tuple):
 def plot_twinx(label, path, four_tuple, conn0, conn1, conn2):
   print label,
   label0, label1, label2 = label.split(',')
-  x0, data0 = xy_from_conn(conn0, four_tuple)
-  x1, data1 = xy_from_conn(conn1, four_tuple)
-  x2, data2 = xy_from_conn(conn2, four_tuple)
+  try:
+    x0, data0 = xy_from_conn(conn0, four_tuple)
+    x1, data1 = xy_from_conn(conn1, four_tuple)
+    x2, data2 = xy_from_conn(conn2, four_tuple)
+  except KeyError, e:
+    logging.error(str(e))
+    return
 
   plt.clf()
   fig = plt.figure(figsize=(8,6))
@@ -127,7 +133,8 @@ def main(argv):
     logging.error('%s\nUsage: %s ARGS\n%s' % (e, sys.argv[0], FLAGS))
     sys.exit(1)
 
-  # os.mkdir(FLAGS.label)
+  if not os.path.exists(FLAGS.label):
+    os.mkdir(FLAGS.label)
 
   # for pickle_path in FLAGS.pickles:
   #   logging.info('Processing: %s.' % pickle_path)

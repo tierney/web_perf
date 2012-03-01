@@ -59,7 +59,7 @@ class FssLogger(threading.Thread):
     logging.info('Done.')
     subprocess.call(['bzip2', self.filename])
     subprocess.call(['bzip2', self.filename.replace('.ss.log','.server.pcap')])
-    print 'gzipped log filename:\n%s' % (self.filename + '.gz')
+    print 'gzipped log filename:\n%s' % (self.filename + '.bz2')
     print 'pcap file:\n%s' % (self.filename.replace('.ss.log','.pcap') + '.bz2')
     ss_log_fh.close()
 

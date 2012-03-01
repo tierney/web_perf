@@ -56,7 +56,7 @@ def main(argv):
   if FLAGS.gzipped:
     open_func = gzip.open
   elif FLAGS.bzipped:
-    open_func = bz2.open
+    open_func = bz2.BZ2File
   else:
     open_func = open
 
@@ -87,7 +87,12 @@ def main(argv):
 
     ip_addrs = re.findall(IP_ADDR_PORT, line)
     if ip_addrs:
-      src_ip_port, dest_ip_port = ip_addrs
+      try:
+        src_ip_port, dest_ip_port = ip_addrs
+      except ValueError, e:
+        logging.error("%s: %s." % (str(e), ip_addrs))
+        break
+
       tcp_4tuple = (src_ip_port, dest_ip_port)
       continue
 
