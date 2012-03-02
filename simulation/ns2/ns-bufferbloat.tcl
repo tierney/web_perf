@@ -64,15 +64,16 @@ set operator [$ns node]
 set tower [$ns node]
 set mobile [$ns node]
 
-$ns duplex-link $theseus $operator 1Gb 3ms DropTail
+$ns duplex-link $theseus $level3 100Mb 3ms DropTail
+$ns duplex-link $level3 $operator 1Gb 3ms DropTail
+
 $ns duplex-link $operator $tower 1Gb 1ms DropTail
-$ns duplex-link $tower $mobile 200Kb 10ms DropTail
-
-# Queue-limits
 $ns queue-limit $tower $operator $opt(ot)
-$ns queue-limit $operator $tower $opt(tm)
+$ns queue-limit $operator $tower $opt(ot)
 
+$ns duplex-link $tower $mobile 200Kb 10ms DropTail
 $ns queue-limit $tower $mobile $opt(tm)
+$ns queue-limit $mobile $tower $opt(tm)
 
 
 # $ns duplex-link-op $theseus $mobile orient right-down
@@ -108,16 +109,16 @@ set lossyLink [$ns link $tower $mobile]
 $lossyLink install-error $loss_module
 
 $ns at 0.1 "$ftp start"
-$ns at 45.0 "$ftp stop"
+$ns at 300.0 "$ftp stop"
 
 #Detach tcp and sink agents (not really necessary)
-$ns at 45.0 "$ns detach-agent $theseus $tcp ; $ns detach-agent $mobile $sink"
+$ns at 300.0 "$ns detach-agent $theseus $tcp ; $ns detach-agent $mobile $sink"
 
 #call the monitor at the end
 $ns at 0 "monitor 0.01"
 
 #Call the finish procedure after 5 seconds of simulation time
-$ns at 45.1 "finish"
+$ns at 300.1 "finish"
 
 #Run the simulation
 $ns run

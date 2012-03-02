@@ -92,7 +92,7 @@ class Logger(object):
                                       str(time.time()))
     pcap_path = os.path.join(FLAGS.logdir, pcap_name)
     pcap = subprocess.Popen(
-      ['tcpdump','-i','%s' % self.interface,'-w', pcap_path])
+      ['tcpdump','-i','%s' % self.interface,'-w', pcap_path + '.tmp'])
     logging.info(str(['tcpdump','-i','%s' % self.interface,'-w', pcap_path]))
     time.sleep(2)
 
@@ -110,6 +110,8 @@ class Logger(object):
     command.run(timeout = FLAGS.timeout, pskill = to_kill)
 
     pcap.terminate()
+    os.rename(pcap_path +'.tmp', pcap_path)
+
     if FLAGS.sspath:
       ss_fh.flush()
       ss_log.terminate()
@@ -177,7 +179,7 @@ def run_carrier(domains, carriers, carrier, interface, browser_list):
   pcap_name = '%s_%s_%s_%s_%s.client.pcap' % \
       (carrier, 'NA', 'NA', timestamp, ss_uuid)
   pcap_path = os.path.join(FLAGS.logdir, pcap_name)
-  pcap = subprocess.Popen(['tcpdump', '-i', '%s' % interface, '-w', pcap_path])
+  pcap = subprocess.Popen(['tcpdump', '-i', '%s' % interface, '-w', pcap_path + '.tmp'])
 
   # Initiate iperf test.
   iperf_name = '%s_%s.iperf.log' % (timestamp, carrier)
@@ -198,6 +200,7 @@ def run_carrier(domains, carriers, carrier, interface, browser_list):
   c = Client(FLAGS.host, FLAGS.port, 'end')
   c.run()
   pcap.terminate()
+  os.rename(pcap_path +'.tmp', pcap_path)
 
   # Run through the domains.
   for domain in domains:

@@ -42,7 +42,7 @@ class Command(object):
         for line in lines:
           try:
             pid, cmd = line.split(' ', 1)
-            os.kill(pid, signal.SIGKILL)
+            os.kill(int(pid), signal.SIGKILL)
           except OSError:
             logging.error('pid already killed: (%s, %s).' % (line, cmd))
           except ValueError, e:
