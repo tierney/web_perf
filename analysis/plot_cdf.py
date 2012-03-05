@@ -79,7 +79,7 @@ class CDFPlotter(object):
       else:
         x = np.linspace(min(data), max(data), num=len(data))
       y = ecdf(x)
-      plt.step(x, y, 'x', label=self.filepaths[i])
+      plt.step(x, y, '.-', label=self.filepaths[i])
 
     xmin, xmax, ymin, ymax = plt.axis()
     plt.axis((xmin, xmax, 0, 1))
