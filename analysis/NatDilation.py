@@ -15,6 +15,7 @@ TCP_IP_ADDRS = re.compile(
 FLAGS = gflags.FLAGS
 gflags.DEFINE_string('client_filename', None, 'client-side pcap file name', short_name = 'c')
 gflags.DEFINE_string('server_filename', None, 'server-side pcap file name', short_name = 's')
+gflags.DEFINE_boolean('conv_backwards', False, '-z conv,tcp', short_name = 'b')
 
 gflags.MarkFlagAsRequired('client_filename')
 gflags.MarkFlagAsRequired('server_filename')
@@ -45,8 +46,11 @@ class ConvoParser(object):
         m = re.search(TCP_CONVO_FOUR_TUPLE, convo_line)
         if m:
           ip_client, port_client, ip_server, port_server = m.groups()
+          if FLAGS.conv_backwards:
+            ip_server, port_server, ip_client, port_client = m.groups()
+
           # Filter uninteresting conversations
-          if port_server not in ['80', '443']:
+          if port_server not in ['80', '443', '34344']:
             continue
 
           convo_tuple = (ip_client, port_client, ip_server, port_server)
@@ -69,18 +73,24 @@ class ConvoParser(object):
           convos_rtt[convo_tuple] = ack_rtts_values
 
           convo = subprocess.Popen(
-            shlex.split('tshark -r %s -n -R "ip.addr == %s and tcp.port == %s '\
+            shlex.split('tshark -r %s -n -d tcp.port==34344,http -R "ip.addr == %s and tcp.port == %s '\
                           'and ip.addr == %s and tcp.port == %s"' % \
                           (filename, ip_client, port_client,
                            ip_server, port_server)), stdout=subprocess.PIPE)
+          # print 'tshark -r %s -n -d tcp.port==34344,http -R "ip.addr == %s and tcp.port == %s '\
+          #     'and ip.addr == %s and tcp.port == %s"' % \
+          #     (filename, ip_client, port_client, ip_server, port_server)
 
           # Parse for difference between HTTP Response ACK and GET.
           for packet in convo.stdout.readlines():
             packet = packet.strip()
+            # if 'GET' in packet and client:
+            #   print ip_client, ip_server, packet
 
             # Find timestamp for client -> server packet.
-            m = re.search('([0-9.]+) %s\ +->\ +%s' % (ip_client, ip_server), packet)
-            if not m: continue
+            m = re.search('([0-9.]+)\ +%s\ +->\ +%s' % (ip_client, ip_server), packet)
+            if not m:
+              continue
             timestamp, = m.groups()
 
             # Figure out if this is a GET request.
@@ -90,7 +100,8 @@ class ConvoParser(object):
 
             gap = float(timestamp) - float(last_client_to_server_timestamp)
             m = re.search('GET (.*) HTTP', packet)
-            if m: request, = m.groups()
+            if m:
+              request, = m.groups()
             # file_time[request] = gap
             file_time.append((request, gap))
 
@@ -140,10 +151,12 @@ def main(argv):
 
 
   for convo in client_convos_file_time:
+    # print 'Convo:', convo
     convo_dict = {k:v for k,v in client_convos_file_time.get(convo)}
     # client_convos_file_time.get(convo).keys()
     convo_keys = [key for key, value in client_convos_file_time.get(convo)]
     for possible_match in server_convos_file_time:
+      # print 'Match?:', possible_match
       possible_match_keys = [key for key, value in server_convos_file_time.get(possible_match)] #.keys()
       intersection = ordered_intersect(convo_keys, possible_match_keys)
       if len(intersection) == 0: continue
