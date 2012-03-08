@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """SecureXMLRPCServer.py - simple XML RPC server supporting SSL.
 
 Based on this article: http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/81549
@@ -85,7 +87,7 @@ class SecureXMLRpcRequestHandler(SimpleXMLRPCServer.SimpleXMLRPCRequestHandler):
 
       # shut down the connection
       self.wfile.flush()
-      self.connection.shutdown() # Modified here!
+      # self.connection.shutdown() # Modified here!
 
 def test(HandlerClass = SecureXMLRpcRequestHandler,
          ServerClass = SecureXMLRPCServer):
