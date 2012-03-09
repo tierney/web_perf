@@ -6,7 +6,7 @@ For windows users: http://webcleaner.sourceforge.net/pyOpenSSL-0.6.win32-py2.4.e
 """
 
 # Configure below
-LISTEN_HOST='127.0.0.1' # You should not use '' here, unless you have a real FQDN.
+LISTEN_HOST='216.165.108.71' # You should not use '' here, unless you have a real FQDN.
 LISTEN_PORT=444
 
 KEYFILE='/etc/apache2/ssl/selfsigned.crt'    # Replace with your PEM formatted key file
@@ -85,7 +85,7 @@ class SecureXMLRpcRequestHandler(SimpleXMLRPCServer.SimpleXMLRPCRequestHandler):
 
       # shut down the connection
       self.wfile.flush()
-      self.connection.shutdown() # Modified here!
+      # self.connection.shutdown() # Modified here!
 
 def test(HandlerClass = SecureXMLRpcRequestHandler,
          ServerClass = SecureXMLRPCServer):
