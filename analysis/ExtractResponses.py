@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# NB: Depends on tcptrace.
+
 import gflags
 import logging
 import os
@@ -31,6 +33,8 @@ class ExtractResponses(object):
       os.mkdir(dats_dir)
 
     self._bunzip()
+    # TODO(tierney): Flag and facility for 'Decode as..' when using not port 80
+    # for HTTP traffic.
     extractor = subprocess.Popen(
       'tshark -r %s -R "tcp.port == 80" -w - | tcptrace -e -n stdin' % \
         (os.path.abspath(self.pcap_path)),
@@ -39,8 +43,13 @@ class ExtractResponses(object):
     extractor.wait()
     self._bzip()
 
-    subprocess.call(shlex.split('tar cjf %s %s' % \
-                                  (dats_dir + '.tar.bz2', dats_dir)))
+    dats_parent_path, dats_dir_name = os.path.split(dats_dir)
+    tar_zipper = subprocess.Popen('tar cjf "%s" "%s"' % \
+                                    (dats_dir + '.tar.bz2',
+                                     dats_dir_name),
+                                  shell=True,
+                                  cwd=dats_parent_path)
+    tar_zipper.wait()
     os.system('rm -rf "%s"' % dats_dir)
 
 
