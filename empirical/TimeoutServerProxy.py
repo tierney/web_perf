@@ -2,18 +2,8 @@ import httplib
 import xmlrpclib
 
 class TimeoutHTTPConnection(httplib.HTTPConnection):
-
   def __init__(self,host,timeout=10):
-    httplib.HTTPConnection.__init__(self,host,timeout=timeout)
-    self.set_debuglevel(99)
-    #self.sock.settimeout(timeout)
-
-"""
-class TimeoutHTTP(httplib.HTTP):
-  _connection_class = TimeoutHTTPConnection
-  def set_timeout(self, timeout):
-    self._conn.timeout = timeout
-"""
+    httplib.HTTPConnection.__init__(self, host, timeout=timeout)
 
 class TimeoutTransport(xmlrpclib.Transport):
   def __init__(self, timeout=10, *l, **kw):
@@ -27,5 +17,5 @@ class TimeoutTransport(xmlrpclib.Transport):
 class TimeoutServerProxy(xmlrpclib.ServerProxy):
   def __init__(self,uri,timeout=10,*l,**kw):
     kw['transport'] = TimeoutTransport(
-       timeout = timeout, use_datetime=kw.get('use_datetime',0))
+       timeout = timeout, use_datetime = kw.get('use_datetime', 0))
     xmlrpclib.ServerProxy.__init__(self,uri,*l,**kw)
