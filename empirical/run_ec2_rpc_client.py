@@ -57,7 +57,8 @@ def main(argv):
 
     subprocess.call(['bzip2', pcap_name])
     copy = subprocess.Popen(shlex.split(
-        'scp ubuntu@%s:/%s_%s.server.pcap.bz2 .' % (host, uuid, region)))
+        'scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ' \
+          'ubuntu@%s:/%s_%s.server.pcap.bz2 .' % (host, uuid, region)))
     copy.wait()
 
   display.stop()
