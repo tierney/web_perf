@@ -43,24 +43,17 @@ class SecurityGroups(object):
       try:
         web = self.controller.connection.create_security_group(
           'apache', 'Our Apache Group')
-        if not web.authorize('tcp', 80, 80, '0.0.0.0/0'):
-          logging.warning(
-            '[%s] Could not setup apache group.' % self.controller.region.name)
+        web.authorize('tcp', 80, 80, '0.0.0.0/0')
 
         ssh = self.controller.connection.create_security_group(
           'ssh', 'SSH Access')
-        if not ssh.authorize('tcp', 22, 22, cidr_ip='%s/32' % \
-                               (get_ip_address(FLAGS.interface))):
-          logging.warning(
-            '[%s] Could not setup ssh group.' % self.controller.region.name)
+        ssh.authorize('tcp', 22, 22, cidr_ip='%s/32' % \
+                        (get_ip_address(FLAGS.interface)))
 
-        ssh = self.controller.connection.create_security_group(
+        rpc = self.controller.connection.create_security_group(
           'rpc', 'RPC Access')
-        if not ssh.authorize('tcp', FLAGS.rpcport, FLAGS.rpcport, cidr_ip='%s/32' % \
-                               (get_ip_address(FLAGS.interface))):
-          logging.warning(
-            '[%s] Could not setup rpc group.' % self.controller.region.name)
-
+        rpc.authorize('tcp', FLAGS.rpcport, FLAGS.rpcport, cidr_ip='%s/32' % \
+                        (get_ip_address(FLAGS.interface)))
         break
       except boto.exception.EC2ResponseError:
         logging.warning('Already have security groups.')
@@ -68,10 +61,12 @@ class SecurityGroups(object):
     return ['apache','ssh','rpc']
 
   def delete(self):
-    self.controller.connection.delete_security_group('apache')
-    self.controller.connection.delete_security_group('ssh')
-    self.controller.connection.delete_security_group('rpc')
-
+    try:
+      self.controller.connection.delete_security_group('apache')
+      self.controller.connection.delete_security_group('ssh')
+      self.controller.connection.delete_security_group('rpc')
+    except boto.exception.EC2ResponseError:
+      logging.warning('Problem deleting security groups.')
 
 class Ec2Controller(threading.Thread):
   def __init__(self, region):
@@ -102,9 +97,9 @@ wget -O /tmp/example.tar.gz http://theseus.news.cs.nyu.edu/example.tar.gz
 tar xf /tmp/example.tar.gz
 mv example/* /var/www/
 rmdir example
-wget http://theseus.news.cs.nyu.edu/run_tcpdump.py
-chmod +x run_tcpdump.py
-./run_tcpdump.py -p %d &
+wget http://theseus.news.cs.nyu.edu/run_ec2_rpc_server.py
+chmod +x run_ec2_rpc_server.py
+./run_ec2_rpc_server.py -p %d &
 """ % (FLAGS.rpcport)
 
     reservation = image.run(min_count=1,
