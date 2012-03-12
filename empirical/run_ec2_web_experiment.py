@@ -9,6 +9,7 @@ import struct
 import sys
 import threading
 import time
+import xmlrpclib
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -168,7 +169,22 @@ def main(argv):
       break
     time.sleep(1)
 
-  raw_input('All ready.')
+  print 'All running...'
+  while True:
+    rpc_ready = 0
+    for controller in controllers:
+      try:
+        server = xmlrpclib.ServerProxy(
+          'http://%s:%d' % (controller.instance.public_dns_name, FLAGS.rpcport))
+        if server.ready():
+          rpc_ready += 1
+      except Exception, e:
+        pass
+    if len(controllers) == rpc_ready:
+      break
+    time.sleep(1)
+
+  raw_input('All RPC ready.')
 
   for controller in controllers:
     controller.kill()

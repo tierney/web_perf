@@ -10,8 +10,8 @@ from selenium import webdriver
 import gflags
 FLAGS = gflags.FLAGS
 
-gflags.DEFINE_multistring('ec2_region_hosts', None, 'EC2 <region,hosts> to connect to',
-                          short_name = 'h')
+gflags.DEFINE_multistring('ec2_region_hosts', None,
+                          'EC2 <region,hosts> to connect to', short_name = 'h')
 gflags.DEFINE_integer('rpcport', 34344, 'RPC port to connect to',
                       short_name = 'p')
 
