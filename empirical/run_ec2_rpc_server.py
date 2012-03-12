@@ -14,9 +14,7 @@ from SimpleXMLRPCServer import SimpleXMLRPCServer
 from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 
 import gflags
-
 FLAGS = gflags.FLAGS
-
 gflags.DEFINE_integer('port', None, 'port number for XMLRPCServer',
                       short_name = 'p')
 gflags.MarkFlagAsRequired('port')
@@ -29,9 +27,11 @@ def get_ip_address(ifname):
     struct.pack('256s', ifname[:15])
   )[20:24])
 
+
 # Restrict to a particular path.
 class RequestHandler(SimpleXMLRPCRequestHandler):
   rpc_paths = ('/RPC2',)
+
 
 class Tcpdump:
   def start(self, region, uuid):
@@ -42,6 +42,9 @@ class Tcpdump:
   def stop(self, region, uuid, pid):
     os.kill(pid, signal.SIGKILL)
     subprocess.call(['bzip2', '%s_%s.server.pcap' % (uuid, region)])
+    return True
+
+  def ready(self):
     return True
 
 
