@@ -16,6 +16,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 import boto
 from boto import ec2
 import gflags
+from TimeoutServerProxy import TimeoutServerProxy
 
 FLAGS = gflags.FLAGS
 gflags.DEFINE_string('interface', None, 'interface to control experiments',
