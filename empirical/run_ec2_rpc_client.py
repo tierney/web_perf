@@ -7,6 +7,8 @@ from uuid import uuid4
 import xmlrpclib
 
 from selenium import webdriver
+from pyvirtualdisplay import Display
+
 import gflags
 FLAGS = gflags.FLAGS
 
@@ -24,6 +26,9 @@ def main(argv):
   except gflags.FlagsError, e:
     logging.error('%s\nUsage: %s ARGS\n%s' % (e, sys.argv[0], FLAGS))
     sys.exit(1)
+
+  display = Display(visible=0, size=(800, 600))
+  display.start()
 
   for region_host in FLAGS.ec2_region_hosts:
     region, host = region_host.split(',')
@@ -53,6 +58,7 @@ def main(argv):
         'scp ubuntu@%s:/%s_%s.server.pcap.bz2 .' % (host, uuid, region)))
     copy.wait()
 
+  display.stop()
 
 if __name__=='__main__':
   main(sys.argv)
