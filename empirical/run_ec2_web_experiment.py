@@ -174,8 +174,9 @@ def main(argv):
     rpc_ready = 0
     for controller in controllers:
       try:
-        server = xmlrpclib.ServerProxy(
-          'http://%s:%d' % (controller.instance.public_dns_name, FLAGS.rpcport))
+        server = TimeoutServerProxy(
+          'http://%s:%d' % (controller.instance.public_dns_name, FLAGS.rpcport),
+          timeout = 5)
         if server.ready():
           rpc_ready += 1
       except Exception, e:
