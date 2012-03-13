@@ -116,6 +116,7 @@ def main(argv):
     for region_host in ec2_region_hosts:
       for browser in FLAGS.browsers:
         client_experiment(region_host, carrier, browser)
+        time.sleep(15)
 
   display.stop()
 

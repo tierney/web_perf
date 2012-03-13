@@ -34,7 +34,7 @@ class ConvoParser(object):
   def convo(self, filename, client):
     convos = subprocess.Popen(
       shlex.split('tshark -r %s -z conv,tcp -n' % filename),
-      stdout=subprocess.PIPE)
+      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     convos_file_time = {}
     convos_rtt = {}
@@ -62,13 +62,13 @@ class ConvoParser(object):
                shlex.split('tshark -r %s -n -R "ip.dst == %s and tcp.dstport == %s '\
                              'and ip.src == %s and tcp.srcport == %s" -e tcp.analysis.ack_rtt -T fields' % \
                              (filename, ip_client, port_client,
-                              ip_server, port_server)), stdout=subprocess.PIPE)
+                              ip_server, port_server)), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
           else:
              ack_rtts = subprocess.Popen(
                shlex.split('tshark -r %s -n -R "ip.src == %s and tcp.srcport == %s '\
                              'and ip.dst == %s and tcp.dstport == %s" -e tcp.analysis.ack_rtt -T fields' % \
                              (filename, ip_client, port_client,
-                              ip_server, port_server)), stdout=subprocess.PIPE)
+                              ip_server, port_server)), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
           ack_rtts_values = [ack_rtt.strip() for ack_rtt in ack_rtts.stdout.readlines() if ack_rtt.strip()]
           convos_rtt[convo_tuple] = ack_rtts_values
 
@@ -76,7 +76,7 @@ class ConvoParser(object):
             shlex.split('tshark -r %s -n -d tcp.port==34344,http -R "ip.addr == %s and tcp.port == %s '\
                           'and ip.addr == %s and tcp.port == %s"' % \
                           (filename, ip_client, port_client,
-                           ip_server, port_server)), stdout=subprocess.PIPE)
+                           ip_server, port_server)), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
           # print 'tshark -r %s -n -d tcp.port==34344,http -R "ip.addr == %s and tcp.port == %s '\
           #     'and ip.addr == %s and tcp.port == %s"' % \
           #     (filename, ip_client, port_client, ip_server, port_server)
@@ -141,14 +141,20 @@ def main(argv):
   client_convos_file_time, client_convos_rtt = cp.client_convos()
   server_convos_file_time, server_convos_rtt = cp.server_convos()
 
-  print client_convos_rtt
-  print server_convos_rtt
-  print
-  print_convos_file_time(client_convos_file_time)
-  print
-  print_convos_file_time(server_convos_file_time)
-  print
+  # print client_convos_rtt
+  # print server_convos_rtt
+  # print
+  # print_convos_file_time(client_convos_file_time)
+  # print
+  # print_convos_file_time(server_convos_file_time)
+  # print
 
+  for convo in client_convos_file_time:
+    print '%s:%s -> (%s:%s)' % (convo[0], convo[1], convo[2], convo[3])
+    client_rtts = [float(val) for val in client_convos_rtt.get(convo)]
+    if client_rtts:
+      print 'client rtt min/avg/max = %.3f/%.3f/%.3f ms' % (1000 * min(client_rtts), 1000 * average(client_rtts), 1000 * max(client_rtts))
+    print
 
   for convo in client_convos_file_time:
     # print 'Convo:', convo
