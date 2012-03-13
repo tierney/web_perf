@@ -9,3 +9,4 @@ lib/
 local
 share/
 *.tmp
+*.bz2
