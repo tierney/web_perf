@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
-import gflags
+import logging
 import sys
+import socket
+
+import gflags
 from selenium import webdriver
 
 FLAGS = gflags.FLAGS
@@ -50,6 +53,7 @@ class BrowserRun(object):
     browser = self._browser()
     browser.get('http://' + self.domain)
     browser.quit()
+
 
 def main(argv):
   try:

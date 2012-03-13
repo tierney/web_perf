@@ -4,6 +4,7 @@
 
 import fcntl
 import logging
+import os
 import socket
 import struct
 import sys
@@ -19,12 +20,15 @@ import gflags
 from TimeoutServerProxy import TimeoutServerProxy
 
 FLAGS = gflags.FLAGS
-gflags.DEFINE_string('interface', None, 'interface to control experiments',
-                     short_name = 'i')
+CARRIERS_SUBNETS = {'t-mobile': '208.54.44.0',
+                    'verizon' : '174.226.205.0',
+                    'beaker' : '216.165.108.0',
+                    }
 gflags.DEFINE_string('keypair', None, 'keypair to use', short_name = 'k')
 gflags.DEFINE_integer('rpcport', 34344, 'RPC port for remote machines to listen on',
                       short_name = 'p')
-gflags.MarkFlagAsRequired('interface')
+gflags.DEFINE_string('wwwpath', '~/www', 'path to web directory', short_name = 'w')
+
 gflags.MarkFlagAsRequired('keypair')
 
 def get_ip_address(ifname):
@@ -45,17 +49,20 @@ class SecurityGroups(object):
       try:
         web = self.controller.connection.create_security_group(
           'apache', 'Our Apache Group')
-        web.authorize('tcp', 80, 80, '0.0.0.0/0')
+        for carrier in CARRIERS_SUBNETS:
+          web.authorize('tcp', 80, 80, '%s/24' % CARRIERS_SUBNETS.get(carrier))
 
         ssh = self.controller.connection.create_security_group(
           'ssh', 'SSH Access')
-        ssh.authorize('tcp', 22, 22, cidr_ip='%s/32' % \
-                        (get_ip_address(FLAGS.interface)))
+        for carrier in CARRIERS_SUBNETS:
+          ssh.authorize('tcp', 22, 22, cidr_ip='%s/24' % \
+                          (CARRIERS_SUBNETS.get(carrier)))
 
         rpc = self.controller.connection.create_security_group(
           'rpc', 'RPC Access')
-        rpc.authorize('tcp', FLAGS.rpcport, FLAGS.rpcport, cidr_ip='%s/32' % \
-                        (get_ip_address(FLAGS.interface)))
+        for carrier in CARRIERS_SUBNETS:
+          rpc.authorize('tcp', FLAGS.rpcport, FLAGS.rpcport,
+                        cidr_ip='%s/24' % (CARRIERS_SUBNETS.get(carrier)))
         break
       except boto.exception.EC2ResponseError:
         logging.warning('Already have security groups.')
@@ -78,6 +85,8 @@ class Ec2Controller(threading.Thread):
     self.connection = None
     self.state = None
     self.stop = threading.Event()
+    self.public_dns_names_path = \
+        os.path.expanduser(os.path.join(FLAGS.wwwpath, 'public_dns_names.txt'))
 
   def run(self):
     self.connection = self.region.connect()
@@ -120,6 +129,10 @@ chmod +x run_ec2_rpc_server.py
       self.instance.update()
 
     logging.info(' Launched: %s,%s' % (self.region.name, self.instance.public_dns_name))
+    with open(self.public_dns_names_path, 'a') as fh:
+      fh.write('%s,%s\n' % (self.region.name, self.instance.public_dns_name))
+      fh.flush()
+
     self.state = 'running'
 
     while not self.stop.is_set():
@@ -149,13 +162,18 @@ def main(argv):
   all_regions = ec2.regions()
   # ['eu-west-1','sa-east-1','us-east-1','ap-northeast-1',
   #  'us-west-1','us-west-2','ap-southeast-1']
-  regions = [region for region in all_regions if region.name in
-             ['eu-west-1','sa-east-1','us-east-1','ap-northeast-1',
-              'us-west-1','us-west-2','ap-southeast-1']]
-  # ['us-east-1','us-west-1']]
+  regions_list = ['us-east-1','us-west-1']
+  regions = [region for region in all_regions if region.name in regions_list]
 
   logging.info('Working in the following regions: %s.' % \
                  [str(region.name) for region in regions])
+
+  # Clear old public_dns_names file.
+  public_dns_path = \
+      os.path.expanduser(os.path.join(FLAGS.wwwpath, 'public_dns_names.txt'))
+  with open(public_dns_path, 'w') as fh: pass
+
+  # Init controllers.
   controllers = [Ec2Controller(region) for region in regions]
   for controller in controllers:
     controller.daemon = True
@@ -172,7 +190,7 @@ def main(argv):
       break
     time.sleep(1)
 
-  print 'All running...'
+  print 'Launched. Initializing setup...'
   while True:
     rpc_ready = 0
     for controller in controllers:
@@ -188,7 +206,7 @@ def main(argv):
       break
     time.sleep(1)
 
-  raw_input('All RPC ready.')
+  raw_input('Ready. (Press Enter to collect data and terminate.)')
 
   for controller in controllers:
     controller.kill()
