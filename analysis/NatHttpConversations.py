@@ -157,9 +157,7 @@ def main(argv):
     print
 
   for convo in client_convos_file_time:
-    # print 'Convo:', convo
     convo_dict = {k:v for k,v in client_convos_file_time.get(convo)}
-    # client_convos_file_time.get(convo).keys()
     convo_keys = [key for key, value in client_convos_file_time.get(convo)]
     for possible_match in server_convos_file_time:
       # print 'Match?:', possible_match
