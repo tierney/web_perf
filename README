@@ -14,6 +14,7 @@ Laptop running experiment and graph/analysis code:
   apt-get install xvfb xserver-xephyr
   make setup # Lots of python action...
   source bin/activate # This should work if everything went well before.
+  pip install -U PyVirtualDisplay
   pip install -U selenium
   # The following commands takes a while to complete and is only necessary for
   # graphing.

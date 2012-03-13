@@ -8,7 +8,6 @@ import xmlrpclib
 
 from selenium import webdriver
 from pyvirtualdisplay import Display
-from TimeoutServerProxy import TimeoutServerProxy
 
 import gflags
 FLAGS = gflags.FLAGS
@@ -35,8 +34,8 @@ def main(argv):
     region, host = region_host.split(',')
 
     # Start server tcpdump
-    server = TimeoutServerProxy('http://%s:%d' % (host, FLAGS.rpcport),
-                                timeout=5)
+    server = xmlrpclib.ServerProxy('http://%s:%d' % (host, FLAGS.rpcport))
+
     uuid = str(uuid4())
     pid = server.start(region, uuid)
 
