@@ -23,7 +23,18 @@ FLAGS = gflags.FLAGS
 CARRIERS_SUBNETS = {'t-mobile': '208.54.44.0',
                     'verizon' : '174.226.205.0',
                     'beaker' : '216.165.108.0',
+                    'nyuwifi' : '216.165.95.0',
                     }
+REGIONS_LIST = [
+  'eu-west-1',
+  'sa-east-1',
+  'us-east-1',
+  'ap-northeast-1',
+  'us-west-1',
+  'us-west-2',
+  # 'ap-southeast-1',
+  ]
+
 gflags.DEFINE_string('keypair', None, 'keypair to use', short_name = 'k')
 gflags.DEFINE_integer('rpcport', 34344, 'RPC port for remote machines to listen on',
                       short_name = 'p')
@@ -126,9 +137,13 @@ chmod +x run_ec2_rpc_server.py
     while 'running' != self.instance.state:
       time.sleep(1)
       time_waited += 1
-      self.instance.update()
+      try:
+        self.instance.update()
+      except boto.exception.EC2ResponseError:
+        pass
 
-    logging.info(' Launched: %s,%s' % (self.region.name, self.instance.public_dns_name))
+    logging.info(' Launched: %s,%s' % (self.region.name,
+                                       self.instance.public_dns_name))
     with open(self.public_dns_names_path, 'a') as fh:
       fh.write('%s,%s\n' % (self.region.name, self.instance.public_dns_name))
       fh.flush()
@@ -160,10 +175,7 @@ def main(argv):
     sys.exit(1)
 
   all_regions = ec2.regions()
-  # ['eu-west-1','sa-east-1','us-east-1','ap-northeast-1',
-  #  'us-west-1','us-west-2','ap-southeast-1']
-  regions_list = ['us-east-1','us-west-1']
-  regions = [region for region in all_regions if region.name in regions_list]
+  regions = [region for region in all_regions if region.name in REGIONS_LIST]
 
   logging.info('Working in the following regions: %s.' % \
                  [str(region.name) for region in regions])
@@ -173,7 +185,7 @@ def main(argv):
       os.path.expanduser(os.path.join(FLAGS.wwwpath, 'public_dns_names.txt'))
   with open(public_dns_path, 'w') as fh: pass
 
-  # Init controllers.
+  # Fire up controllers and the EC2 instances..
   controllers = [Ec2Controller(region) for region in regions]
   for controller in controllers:
     controller.daemon = True
@@ -191,8 +203,11 @@ def main(argv):
     time.sleep(1)
 
   print 'Launched. Initializing setup...'
+
+  # Check for when RPC is ready.
   while True:
     rpc_ready = 0
+    waiting_on = []
     for controller in controllers:
       try:
         server = TimeoutServerProxy(
@@ -201,13 +216,18 @@ def main(argv):
         if server.ready():
           rpc_ready += 1
       except Exception, e:
-        pass
+        waiting_on.append(controller.region.name)
+    sys.stdout.write('Waiting on: %-80s\r' % (80 * ' '))
+    sys.stdout.write('Waiting on: %-80s\r' % (' '.join(waiting_on)))
+    sys.stdout.flush()
     if len(controllers) == rpc_ready:
       break
-    time.sleep(1)
+    time.sleep(2)
+  print
 
-  raw_input('Ready. (Press Enter to collect data and terminate.)')
+  raw_input('Ready. (Press Enter to terminate.)')
 
+  # Clean up everything.
   for controller in controllers:
     controller.kill()
 
@@ -218,7 +238,9 @@ def main(argv):
         terminated += 1
     if len(controllers) == terminated:
       break
-    time.sleep(1)
+    time.sleep(2)
+
+  os.remove(public_dns_path)
 
 if __name__=='__main__':
   main(sys.argv)
