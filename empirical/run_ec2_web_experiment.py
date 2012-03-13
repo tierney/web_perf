@@ -35,6 +35,7 @@ REGIONS_LIST = [
   # 'ap-southeast-1',
   ]
 
+gflags.DEFINE_multistring('regions', REGIONS_LIST, 'regions to spawn experiment to')
 gflags.DEFINE_string('keypair', None, 'keypair to use', short_name = 'k')
 gflags.DEFINE_integer('rpcport', 34344, 'RPC port for remote machines to listen on',
                       short_name = 'p')
@@ -86,6 +87,8 @@ class SecurityGroups(object):
       self.controller.connection.delete_security_group('ssh')
       self.controller.connection.delete_security_group('rpc')
     except boto.exception.EC2ResponseError:
+      # TODO(tierney): If this fails, then we should either forego experiment or
+      # figure out to shutdown the delinquent instances.
       logging.warning('Problem deleting security groups.')
 
 class Ec2Controller(threading.Thread):
@@ -114,7 +117,7 @@ class Ec2Controller(threading.Thread):
     user_data = """#!/bin/bash
 set -e -x
 export DEBIAN_FRONTEND=noninteractive
-apt-get install apache2 python-gflags -y
+apt-get install apache2 python-gflags traceroute -y
 wget -O /tmp/example.tar.gz http://theseus.news.cs.nyu.edu/example.tar.gz
 tar xf /tmp/example.tar.gz
 mv example/* /var/www/
@@ -175,7 +178,7 @@ def main(argv):
     sys.exit(1)
 
   all_regions = ec2.regions()
-  regions = [region for region in all_regions if region.name in REGIONS_LIST]
+  regions = [region for region in all_regions if region.name in FLAGS.regions]
 
   logging.info('Working in the following regions: %s.' % \
                  [str(region.name) for region in regions])

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import sys
 import time
 from boto import ec2
@@ -14,12 +13,12 @@ def main():
   for region in regions:
     conn = region.connect()
     instances = conn.get_all_instances()
-    print '[%-15s] Reservations: %s' % (region.name, instances)
     for reserv in instances:
       for inst in reserv.instances:
-        if inst.state == u'running':
-          print "[%-10s] Terminating instance %s" % (region.name, inst)
-          inst.terminate()
+        if inst.state == u'terminated':
+          continue
+        print "[%-15s] %s is %s" % (region.name, inst.id, inst.state)
+
 
 if __name__ == "__main__":
   main()
