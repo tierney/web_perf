@@ -42,7 +42,7 @@ class Tcpdump:
 
   def stop(self, timestamp, uuid, region, carrier, browser, pid):
     os.kill(pid, signal.SIGKILL)
-    subprocess.call(['bzip2', '%s_%s_%s_%s.server.pcap' % \
+    subprocess.call(['bzip2', '%s_%s_%s_%s_%s.server.pcap' % \
                        (timestamp, uuid, region, carrier, browser)])
     return True
 
