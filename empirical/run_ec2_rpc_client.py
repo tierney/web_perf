@@ -66,6 +66,9 @@ def client_experiment(region_host, carrier, browser, protocol, port):
   server = xmlrpclib.ServerProxy('http://%s:%d' % (host, FLAGS.rpcport))
 
   uuid = str(uuid4())
+  logging.info('Calling .start() at http://%s:%d %s.' % \
+                 (host, FLAGS.rpcport, '_'.join([timestamp, uuid, region,
+                                                 carrier, browser, port])))
   pid = server.start(timestamp, uuid, region, carrier, browser, port)
 
   # Start our tcpdump
@@ -86,7 +89,7 @@ def client_experiment(region_host, carrier, browser, protocol, port):
 
   # Kill local and remote tcpdumps.
   tcpdump.terminate()
-  server.stop(timestamp, uuid, region, carrier, browser, pid)
+  server.stop(timestamp, uuid, region, carrier, browser, port, pid)
 
   # Zip up local tcpdump.
   subprocess.call(['bzip2', pcap_name])
