@@ -59,16 +59,19 @@ def client_experiment(region_host, carrier, browser):
 
   region, host = region_host.split(',')
   interface = _CARRIER_IFACES_MAGIC_DICT.get(carrier)
+  timestamp = time.strftime('%Y-%m-%d-%H-%M-%S')
 
   # Start server tcpdump
   server = xmlrpclib.ServerProxy('http://%s:%d' % (host, FLAGS.rpcport))
 
   uuid = str(uuid4())
-  pid = server.start(uuid, region, carrier, browser)
+  pid = server.start(timestamp, uuid, region, carrier, browser)
 
   # Start our tcpdump
-  pcap_name = '%s_%s_%s_%s.client.pcap' % (uuid, region, carrier, browser)
-  tcpdump = subprocess.Popen(shlex.split('tcpdump -i %s -w %s' % (interface, pcap_name)))
+  pcap_name = '%s_%s_%s_%s_%s.client.pcap' % \
+      (timestamp, uuid, region, carrier, browser)
+  tcpdump = subprocess.Popen(
+    shlex.split('tcpdump -i %s -w %s' % (interface, pcap_name)))
 
   # Start browser
   # TODO(tierney): Currently only supports chrome and firefox.
@@ -81,7 +84,7 @@ def client_experiment(region_host, carrier, browser):
 
   # Kill local and remote tcpdumps.
   tcpdump.terminate()
-  server.stop(uuid, region, carrier, browser, pid)
+  server.stop(timestamp, uuid, region, carrier, browser, pid)
 
   # Zip up local tcpdump.
   subprocess.call(['bzip2', pcap_name])
