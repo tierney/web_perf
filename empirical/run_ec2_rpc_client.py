@@ -115,6 +115,7 @@ def main(argv):
     prepare_interfaces(carrier)
 
     for region_host in ec2_region_hosts:
+
       for i, browser in enumerate(FLAGS.browsers):
         client_experiment(region_host, carrier, browser)
 

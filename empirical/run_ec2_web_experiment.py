@@ -20,10 +20,9 @@ import gflags
 from TimeoutServerProxy import TimeoutServerProxy
 
 FLAGS = gflags.FLAGS
-CARRIERS_SUBNETS = {'t-mobile': '208.54.44.0',
-                    'verizon' : '174.226.205.0',
-                    'beaker' : '216.165.108.0',
-                    'nyuwifi' : '216.165.95.0',
+CARRIERS_SUBNETS = {'t-mobile': '208.54.0.0',
+                    'verizon' : '174.226.0.0',
+                    'nyu' : '216.165.0.0',
                     }
 REGIONS_LIST = [
   'eu-west-1',
@@ -62,19 +61,19 @@ class SecurityGroups(object):
         web = self.controller.connection.create_security_group(
           'apache', 'Our Apache Group')
         for carrier in CARRIERS_SUBNETS:
-          web.authorize('tcp', 80, 80, '%s/24' % CARRIERS_SUBNETS.get(carrier))
+          web.authorize('tcp', 80, 80, '%s/16' % CARRIERS_SUBNETS.get(carrier))
 
         ssh = self.controller.connection.create_security_group(
           'ssh', 'SSH Access')
         for carrier in CARRIERS_SUBNETS:
-          ssh.authorize('tcp', 22, 22, cidr_ip='%s/24' % \
+          ssh.authorize('tcp', 22, 22, cidr_ip='%s/16' % \
                           (CARRIERS_SUBNETS.get(carrier)))
 
         rpc = self.controller.connection.create_security_group(
           'rpc', 'RPC Access')
         for carrier in CARRIERS_SUBNETS:
           rpc.authorize('tcp', FLAGS.rpcport, FLAGS.rpcport,
-                        cidr_ip='%s/24' % (CARRIERS_SUBNETS.get(carrier)))
+                        cidr_ip='%s/16' % (CARRIERS_SUBNETS.get(carrier)))
         break
       except boto.exception.EC2ResponseError:
         logging.warning('Already have security groups.')
