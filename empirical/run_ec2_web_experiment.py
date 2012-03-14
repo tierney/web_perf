@@ -21,7 +21,8 @@ from TimeoutServerProxy import TimeoutServerProxy
 
 FLAGS = gflags.FLAGS
 CARRIERS_SUBNETS = {'t-mobile': '208.54.0.0',
-                    'verizon' : '174.226.0.0',
+                    'verizon0' : '174.226.0.0',
+                    'verizon1' : '174.252.0.0',
                     'nyu' : '216.165.0.0',
                     }
 REGIONS_LIST = [
