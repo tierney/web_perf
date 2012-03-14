@@ -20,11 +20,10 @@ import gflags
 from TimeoutServerProxy import TimeoutServerProxy
 
 FLAGS = gflags.FLAGS
-CARRIERS_SUBNETS = {'t-mobile': '208.54.0.0',
-                    'verizon0' : '174.226.0.0',
-                    'verizon1' : '174.252.0.0',
-                    'nyu' : '216.165.0.0',
-                    }
+
+ALLOWED_SUBNETS = ['216.165.0.0/16'] + \
+    [line.strip() for line in open('cell_phone_prefixes.txt').readlines()]
+
 REGIONS_LIST = [
   'eu-west-1',
   'sa-east-1',
@@ -62,20 +61,19 @@ class SecurityGroups(object):
       try:
         web = self.controller.connection.create_security_group(
           'apache', 'Our Apache Group')
-        for carrier in CARRIERS_SUBNETS:
-          web.authorize('tcp', 80, 80, '%s/16' % CARRIERS_SUBNETS.get(carrier))
+        for subnet in ALLOWED_SUBNETS:
+          web.authorize('tcp', 80, 80, '%s' % subnet)
 
         ssh = self.controller.connection.create_security_group(
           'ssh', 'SSH Access')
-        for carrier in CARRIERS_SUBNETS:
-          ssh.authorize('tcp', 22, 22, cidr_ip='%s/16' % \
-                          (CARRIERS_SUBNETS.get(carrier)))
+        for subnet in ALLOWED_SUBNETS:
+          ssh.authorize('tcp', 22, 22, cidr_ip='%s' % subnet)
 
         rpc = self.controller.connection.create_security_group(
           'rpc', 'RPC Access')
-        for carrier in CARRIERS_SUBNETS:
+        for subnet in ALLOWED_SUBNETS:
           rpc.authorize('tcp', FLAGS.rpcport, FLAGS.rpcport,
-                        cidr_ip='%s/16' % (CARRIERS_SUBNETS.get(carrier)))
+                        cidr_ip='%s' % subnet)
         break
       except boto.exception.EC2ResponseError:
         logging.warning('Already have security groups.')
@@ -227,9 +225,15 @@ def main(argv):
     if len(controllers) == rpc_ready:
       break
     time.sleep(2)
-  print
 
-  raw_input('Ready. (Press Enter to terminate.)')
+  sys.stdout.write('Waiting on: (None).\n')
+  sys.stdout.flush()
+
+  # We'll wait for the proper exit command.
+  while True:
+    command = raw_input('Ready. (Type quit to terminate.)')
+    if command == 'quit':
+      break
 
   # Clean up everything.
   for controller in controllers:
@@ -242,7 +246,7 @@ def main(argv):
         terminated += 1
     if len(controllers) == terminated:
       break
-    time.sleep(2)
+    time.sleep(1)
 
   os.remove(public_dns_path)
 
