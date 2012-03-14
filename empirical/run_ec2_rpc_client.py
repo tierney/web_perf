@@ -54,9 +54,10 @@ def prepare_interfaces(carrier):
   time.sleep(_IFUP_PAUSE)
 
 
-def client_experiment(region_host, carrier, browser):
+def client_experiment(region_host, carrier, browser, protocol, port):
   global _CARRIER_IFACES_MAGIC_DICT
 
+  port = str(port)
   region, host = region_host.split(',')
   interface = _CARRIER_IFACES_MAGIC_DICT.get(carrier)
   timestamp = time.strftime('%Y-%m-%d-%H-%M-%S')
@@ -65,11 +66,11 @@ def client_experiment(region_host, carrier, browser):
   server = xmlrpclib.ServerProxy('http://%s:%d' % (host, FLAGS.rpcport))
 
   uuid = str(uuid4())
-  pid = server.start(timestamp, uuid, region, carrier, browser)
+  pid = server.start(timestamp, uuid, region, carrier, browser, port)
 
   # Start our tcpdump
-  pcap_name = '%s_%s_%s_%s_%s.client.pcap' % \
-      (timestamp, uuid, region, carrier, browser)
+  pcap_name = '%s_%s_%s_%s_%s_%s.client.pcap' % \
+      (timestamp, uuid, region, carrier, browser, port)
   tcpdump = subprocess.Popen(
     shlex.split('tcpdump -i %s -w %s' % (interface, pcap_name)))
 
@@ -79,7 +80,8 @@ def client_experiment(region_host, carrier, browser):
   if browser == 'chrome': to_kill = 'chromedriver'
   elif browser == 'firefox': to_kill = '/usr/lib/firefox-10.0.2/firefox'
   command = Command(
-    './BrowserRun.py --browser %s --domain %s' % (browser, host))
+    './BrowserRun.py --browser %s --domain %s' % \
+      (browser, protocol + '://' + host + ':' + str(port)))
   command.run(timeout = FLAGS.timeout, pskill = to_kill)
 
   # Kill local and remote tcpdumps.
@@ -116,20 +118,27 @@ def main(argv):
 
   for carrier in _CARRIER_IFACES_MAGIC_DICT:
     prepare_interfaces(carrier)
-
     for region_host in ec2_region_hosts:
+      for i, browser in enumerate(FLAGS.browsers):
+        client_experiment(region_host, carrier, browser, 'http', 80)
+      for i, browser in enumerate(FLAGS.browsers):
+        client_experiment(region_host, carrier, browser, 'http', 80)
+      for i, browser in enumerate(FLAGS.browsers):
+        client_experiment(region_host, carrier, browser, 'http', 80)
 
       for i, browser in enumerate(FLAGS.browsers):
-        client_experiment(region_host, carrier, browser)
+        client_experiment(region_host, carrier, browser, 'https', 443)
+      for i, browser in enumerate(FLAGS.browsers):
+        client_experiment(region_host, carrier, browser, 'https', 443)
+      for i, browser in enumerate(FLAGS.browsers):
+        client_experiment(region_host, carrier, browser, 'https', 443)
 
       for i, browser in enumerate(FLAGS.browsers):
-        client_experiment(region_host, carrier, browser)
-
-        # if len(FLAGS.browsers) == i + 1:
-        #   continue
-        # WAIT = 120
-        # print 'Waiting %d seconds...' % WAIT
-        # time.sleep(WAIT)
+        client_experiment(region_host, carrier, browser, 'http', 34343)
+      for i, browser in enumerate(FLAGS.browsers):
+        client_experiment(region_host, carrier, browser, 'http', 34343)
+      for i, browser in enumerate(FLAGS.browsers):
+        client_experiment(region_host, carrier, browser, 'http', 34343)
 
   display.stop()
 

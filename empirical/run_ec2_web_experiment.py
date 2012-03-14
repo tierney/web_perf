@@ -21,7 +21,7 @@ from TimeoutServerProxy import TimeoutServerProxy
 
 FLAGS = gflags.FLAGS
 
-ALLOWED_SUBNETS = ['216.165.0.0/16'] + \
+ALLOWED_CIDR_IPS = ['216.165.0.0/16'] + \
     [line.strip() for line in open('cell_phone_prefixes.txt').readlines()]
 
 REGIONS_LIST = [
@@ -53,42 +53,41 @@ def get_ip_address(ifname):
 
 
 class SecurityGroups(object):
+  protocol_port = {
+    'http': 80,
+    'ssl' : 443,
+    'wacky': 34343,
+    'ssh': 22,
+    'rpc': 34344,
+    }
+
   def __init__(self, controller):
     self.controller = controller
 
   def create(self):
     while True:
       try:
-        web = self.controller.connection.create_security_group(
-          'apache', 'Our Apache Group')
-        for subnet in ALLOWED_SUBNETS:
-          web.authorize('tcp', 80, 80, '%s' % subnet)
+        for protocol in self.protocol_port:
+          security_group = self.controller.connection.create_security_group(
+            protocol, 'Our %s Group' % protocol)
+          security_group.authorize('tcp', self.protocol_port.get(protocol),
+                                   self.protocol_port.get(protocol),
+                                   ALLOWED_CIDR_IPS)
 
-        ssh = self.controller.connection.create_security_group(
-          'ssh', 'SSH Access')
-        for subnet in ALLOWED_SUBNETS:
-          ssh.authorize('tcp', 22, 22, cidr_ip='%s' % subnet)
-
-        rpc = self.controller.connection.create_security_group(
-          'rpc', 'RPC Access')
-        for subnet in ALLOWED_SUBNETS:
-          rpc.authorize('tcp', FLAGS.rpcport, FLAGS.rpcport,
-                        cidr_ip='%s' % subnet)
         break
       except boto.exception.EC2ResponseError:
         logging.warning('Already have security groups.')
         self.delete()
-    return ['apache','ssh','rpc']
+    return self.protocol_port.keys()
+
 
   def delete(self):
-    try:
-      self.controller.connection.delete_security_group('apache')
-      self.controller.connection.delete_security_group('ssh')
-      self.controller.connection.delete_security_group('rpc')
-    except boto.exception.EC2ResponseError:
-      # TODO(tierney): If this fails, then we should either forego experiment or
-      # figure out to shutdown the delinquent instances.
-      logging.warning('Problem deleting security groups.')
+    for protocol in self.protocol_port:
+      try:
+        self.controller.connection.delete_security_group(protocol)
+      except boto.exception.EC2ResponseError:
+        logging.warning('Problem deleting security group %s.' % protocol)
+
 
 class Ec2Controller(threading.Thread):
   def __init__(self, region):
@@ -111,16 +110,56 @@ class Ec2Controller(threading.Thread):
     assert len(images) == 1
     image = images[0]
 
+    logging.info('[%s] Creating Security groups...' % self.region.name)
     security_groups = SecurityGroups(self).create()
+    logging.info('[%s] Security groups created: %s.' % \
+                   (self.region.name, str(security_groups)))
 
     user_data = """#!/bin/bash
 set -e -x
 export DEBIAN_FRONTEND=noninteractive
 apt-get install apache2 python-gflags traceroute -y
+a2dissite default
+
+wget http://theseus.news.cs.nyu.edu/generate_apache_site.py
+chmod +x ./generate_apache_site.py
 wget -O /tmp/example.tar.gz http://theseus.news.cs.nyu.edu/example.tar.gz
 tar xf /tmp/example.tar.gz
-mv example/* /var/www/
-rmdir example
+
+./generate_apache_site.py -f /var/www/80 -p 80
+mv 80 /etc/apache2/sites-available/80
+mkdir /var/www/80
+cp -r example/* /var/www/80
+a2ensite 80
+
+./generate_apache_site.py -f /var/www/34343 -p 34343
+mv 34343 /etc/apache2/sites-available/34343
+mkdir /var/www/34343
+cp -r example/* /var/www/34343
+a2ensite 34343
+echo "Listen 34343" >> /etc/apache2/ports.conf
+
+wget http://theseus.news.cs.nyu.edu/mod_ssl.so
+cp mod_ssl.so /usr/lib/apache2/modules
+a2enmod ssl
+mkdir -p /etc/apache2/ssl
+wget -O /etc/apache2/ssl/selfsigned.crt http://theseus.news.cs.nyu.edu/selfsigned.crt
+wget http://theseus.news.cs.nyu.edu/spdy
+mv spdy /etc/apache2/sites-available/spdy
+mkdir /var/www/spdy
+cp -r example/* /var/www/spdy
+a2ensite spdy
+
+service apache2 restart
+wget http://theseus.news.cs.nyu.edu/libmod_spdy.so
+cp libmod_spdy.so /usr/lib/apache2/modules/mod_spdy.so
+echo "LoadModule spdy_module /usr/lib/apache2/modules/mod_spdy.so" | tee /etc/apache2/mods-available/spdy.load
+echo "SpdyEnabled on" | tee /etc/apache2/mods-available/spdy.conf
+a2enmod spdy
+
+service apache2 restart
+rm -rf example
+
 wget http://theseus.news.cs.nyu.edu/run_ec2_rpc_server.py
 chmod +x run_ec2_rpc_server.py
 ./run_ec2_rpc_server.py -p %d &
@@ -164,6 +203,7 @@ chmod +x run_ec2_rpc_server.py
       self.instance.update()
 
     SecurityGroups(self).delete()
+
     self.state = 'terminated'
 
   def kill(self):
@@ -231,7 +271,7 @@ def main(argv):
 
   # We'll wait for the proper exit command.
   while True:
-    command = raw_input('Ready. (Type quit to terminate.)')
+    command = raw_input('Ready. (Type quit to terminate.)\n')
     if command == 'quit':
       break
 

@@ -34,16 +34,16 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 
 
 class Tcpdump:
-  def start(self, timestamp, uuid, region, carrier, browser):
+  def start(self, timestamp, uuid, region, carrier, browser, port):
     tcpdump = subprocess.Popen(
-      shlex.split('tcpdump -i eth0 -w %s_%s_%s_%s_%s.server.pcap' % \
-                    (timestamp, uuid, region, carrier, browser)))
+      shlex.split('tcpdump -i eth0 -w %s_%s_%s_%s_%s_%s.server.pcap' % \
+                    (timestamp, uuid, region, carrier, browser, port)))
     return tcpdump.pid
 
-  def stop(self, timestamp, uuid, region, carrier, browser, pid):
+  def stop(self, timestamp, uuid, region, carrier, browser, port, pid):
     os.kill(pid, signal.SIGKILL)
-    subprocess.call(['bzip2', '%s_%s_%s_%s_%s.server.pcap' % \
-                       (timestamp, uuid, region, carrier, browser)])
+    subprocess.call(['bzip2', '%s_%s_%s_%s_%s_%s.server.pcap' % \
+                       (timestamp, uuid, region, carrier, browser, port)])
     return True
 
   def ready(self):

@@ -11,7 +11,8 @@ FLAGS = gflags.FLAGS
 
 gflags.DEFINE_boolean('debug', False, 'produces debugging output')
 gflags.DEFINE_string('browser', None, 'Browser to use..')
-gflags.DEFINE_string('domain', None, 'Domain to HTTP GET.')
+gflags.DEFINE_string(
+  'domain', None, 'Domain to HTTP GET (should include protocol; e.g., http://')
 
 gflags.MarkFlagAsRequired('browser')
 gflags.MarkFlagAsRequired('domain')
@@ -51,7 +52,9 @@ class BrowserRun(object):
 
   def start(self):
     browser = self._browser()
-    browser.get('http://' + self.domain)
+    if not '://' in self.domain:
+      self.domain = 'http://' + self.domain
+    browser.get(self.domain)
     browser.quit()
 
 
