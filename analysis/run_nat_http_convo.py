@@ -25,9 +25,10 @@ for uuid in uuid_files:
   client_convos_file_time, client_convos_rtt = cp.client_convos()
   server_convos_file_time, server_convos_rtt = cp.server_convos()
 
+  print uuid
   for convo in client_convos_file_time:
-    print '%s:%s -> (%s:%s)' % (convo[0], convo[1], convo[2], convo[3])
+    print '  %s:%s -> (%s:%s)' % (convo[0], convo[1], convo[2], convo[3])
     client_rtts = [float(val) for val in client_convos_rtt.get(convo)]
     if client_rtts:
-      print 'client rtt min/avg/max = %.3f/%.3f/%.3f ms' % (1000 * min(client_rtts), 1000 * average(client_rtts), 1000 * max(client_rtts))
+      print '  client rtt min/avg/max = %.3f/%.3f/%.3f ms' % (1000 * min(client_rtts), 1000 * average(client_rtts), 1000 * max(client_rtts))
     print

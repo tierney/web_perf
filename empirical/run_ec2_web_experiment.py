@@ -34,7 +34,8 @@ REGIONS_LIST = [
   # 'ap-southeast-1',
   ]
 
-gflags.DEFINE_multistring('regions', REGIONS_LIST, 'regions to spawn experiment to')
+gflags.DEFINE_multistring('regions', REGIONS_LIST, 'regions to spawn experiment to',
+                          short_name = 'r')
 gflags.DEFINE_string('keypair', None, 'keypair to use', short_name = 'k')
 gflags.DEFINE_integer('rpcport', 34344, 'RPC port for remote machines to listen on',
                       short_name = 'p')
