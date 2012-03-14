@@ -113,10 +113,19 @@ def main(argv):
 
   for carrier in _CARRIER_IFACES_MAGIC_DICT:
     prepare_interfaces(carrier)
+
     for region_host in ec2_region_hosts:
-      for browser in FLAGS.browsers:
+      for i, browser in enumerate(FLAGS.browsers):
         client_experiment(region_host, carrier, browser)
-        time.sleep(15)
+
+      for i, browser in enumerate(FLAGS.browsers):
+        client_experiment(region_host, carrier, browser)
+
+        # if len(FLAGS.browsers) == i + 1:
+        #   continue
+        # WAIT = 120
+        # print 'Waiting %d seconds...' % WAIT
+        # time.sleep(WAIT)
 
   display.stop()
 
