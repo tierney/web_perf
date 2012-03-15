@@ -12,18 +12,20 @@ TCP_CONVO_FOUR_TUPLE = re.compile(
 TCP_IP_ADDRS = re.compile(
   '([0-9]+(?:\.[0-9]+){3})\ +-> ([0-9]+(?:\.[0-9]+){3})')
 
+PORTS = ['80', '443', '34343']
+
 FLAGS = gflags.FLAGS
+gflags.DEFINE_string('fileprefix', None, 'prefix for client and server pcap files', short_name = 'p')
+gflags.DEFINE_integer('httpport', 80, 'port to decode as http', short_name = 'h')
 gflags.DEFINE_string('client_filename', None, 'client-side pcap file name', short_name = 'c')
 gflags.DEFINE_string('server_filename', None, 'server-side pcap file name', short_name = 's')
 gflags.DEFINE_boolean('conv_backwards', False, '-z conv,tcp', short_name = 'b')
 
-gflags.MarkFlagAsRequired('client_filename')
-gflags.MarkFlagAsRequired('server_filename')
-
 class ConvoParser(object):
-  def __init__(self, client_filename, server_filename):
+  def __init__(self, client_filename, server_filename, port_http = 80):
     self.client_filename = client_filename
     self.server_filename = server_filename
+    self.port_http = port_http
 
   def client_convos(self):
     return self.convo(self.client_filename, True)
@@ -45,13 +47,17 @@ class ConvoParser(object):
         convo_line = line.strip()
         m = re.search(TCP_CONVO_FOUR_TUPLE, convo_line)
         if m:
+          # Initial assignment attempt.
           ip_client, port_client, ip_server, port_server = m.groups()
-          if FLAGS.conv_backwards:
-            ip_server, port_server, ip_client, port_client = m.groups()
 
           # Filter uninteresting conversations
-          if port_server not in ['80', '443', '34344']:
+          if port_server not in PORTS and port_client not in PORTS:
+            # print 'Rejected:', ip_client, port_client, ip_server, port_server
             continue
+
+          # Switch order if that makes sense.
+          if port_server not in PORTS and port_client in PORTS:
+            ip_server, port_server, ip_client, port_client = m.groups()
 
           convo_tuple = (ip_client, port_client, ip_server, port_server)
           if convo_tuple not in convos_rtt:
@@ -59,31 +65,33 @@ class ConvoParser(object):
 
           if client:
              ack_rtts = subprocess.Popen(
-               shlex.split('tshark -r %s -n -R "ip.dst == %s and tcp.dstport == %s '\
+               shlex.split('tshark -r %s -n -d tcp.port=%d,http -R "ip.dst == %s and tcp.dstport == %s '\
                              'and ip.src == %s and tcp.srcport == %s" -e tcp.analysis.ack_rtt -T fields' % \
-                             (filename, ip_client, port_client,
+                             (filename, self.port_http, ip_client, port_client,
                               ip_server, port_server)), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
           else:
              ack_rtts = subprocess.Popen(
-               shlex.split('tshark -r %s -n -R "ip.src == %s and tcp.srcport == %s '\
+               shlex.split('tshark -r %s -n -d tcp.port=%d,http -R "ip.src == %s and tcp.srcport == %s '\
                              'and ip.dst == %s and tcp.dstport == %s" -e tcp.analysis.ack_rtt -T fields' % \
-                             (filename, ip_client, port_client,
+                             (filename, self.port_http, ip_client, port_client,
                               ip_server, port_server)), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
           ack_rtts_values = [ack_rtt.strip() for ack_rtt in ack_rtts.stdout.readlines() if ack_rtt.strip()]
           convos_rtt[convo_tuple] = ack_rtts_values
 
-          convo = subprocess.Popen(
-            shlex.split('tshark -r %s -n -d tcp.port==34344,http -R "ip.addr == %s and tcp.port == %s '\
-                          'and ip.addr == %s and tcp.port == %s"' % \
-                          (filename, ip_client, port_client,
-                           ip_server, port_server)), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-          # print 'tshark -r %s -n -d tcp.port==34344,http -R "ip.addr == %s and tcp.port == %s '\
+          # print 'tshark -r %s -n -d tcp.port==%d,http -R "ip.addr == %s and tcp.port == %s '\
           #     'and ip.addr == %s and tcp.port == %s"' % \
-          #     (filename, ip_client, port_client, ip_server, port_server)
+          #     (filename, self.port_http, ip_client, port_client, ip_server, port_server)
+          convo = subprocess.Popen(
+            shlex.split('tshark -r %s -n -d tcp.port==%d,http -R "ip.addr == %s and tcp.port == %s '\
+                          'and ip.addr == %s and tcp.port == %s"' % \
+                          (filename, self.port_http, ip_client, port_client,
+                           ip_server, port_server)), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
           # Parse for difference between HTTP Response ACK and GET.
           for packet in convo.stdout.readlines():
             packet = packet.strip()
+
             # if 'GET' in packet and client:
             #   print ip_client, ip_server, packet
 
@@ -112,7 +120,7 @@ class ConvoParser(object):
 def print_convos_file_time(convos_file_time):
   for convo in convos_file_time:
     request_time_tuples = convos_file_time.get(convo)
-    print convo, [key for key, value in request_time_tuples] # convos_file_time.get(convo).keys()
+    print convo, [key for key, value in request_time_tuples]
 
 def intersect(a, b):
   return list(set(a) & set(b))
@@ -137,17 +145,16 @@ def main(argv):
     logging.error('%s\nUsage: %s ARGS\n%s' % (e, sys.argv[0], FLAGS))
     sys.exit(1)
 
-  cp = ConvoParser(FLAGS.client_filename, FLAGS.server_filename)
+  if FLAGS.fileprefix:
+    client_filename = FLAGS.fileprefix + '.client.pcap'
+    server_filename = FLAGS.fileprefix + '.server.pcap'
+  else:
+    client_filename = FLAGS.client_filename
+    server_filename = FLAGS.server_filename
+
+  cp = ConvoParser(client_filename, server_filename, FLAGS.httpport)
   client_convos_file_time, client_convos_rtt = cp.client_convos()
   server_convos_file_time, server_convos_rtt = cp.server_convos()
-
-  # print client_convos_rtt
-  # print server_convos_rtt
-  # print
-  # print_convos_file_time(client_convos_file_time)
-  # print
-  # print_convos_file_time(server_convos_file_time)
-  # print
 
   for convo in client_convos_file_time:
     print '%s:%s -> (%s:%s)' % (convo[0], convo[1], convo[2], convo[3])

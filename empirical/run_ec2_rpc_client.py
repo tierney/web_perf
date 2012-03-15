@@ -54,7 +54,8 @@ def prepare_interfaces(carrier):
   time.sleep(_IFUP_PAUSE)
 
 
-def client_experiment(region_host, carrier, browser, protocol, port):
+def client_experiment(region_host, carrier, browser, protocol, port,
+                      port80explicit=False):
   global _CARRIER_IFACES_MAGIC_DICT
 
   port = str(port)
@@ -82,9 +83,15 @@ def client_experiment(region_host, carrier, browser, protocol, port):
   to_kill = None
   if browser == 'chrome': to_kill = 'chromedriver'
   elif browser == 'firefox': to_kill = '/usr/lib/firefox-10.0.2/firefox'
-  command = Command(
-    './BrowserRun.py --browser %s --domain %s' % \
-      (browser, protocol + '://' + host + ':' + str(port)))
+
+  if port == '80' and not port80explicit:
+    browser_command = './BrowserRun.py --browser %s --domain %s' % \
+        (browser, protocol + '://' + host)
+  else:
+    browser_command = './BrowserRun.py --browser %s --domain %s' % \
+        (browser, protocol + '://' + host + ':' + str(port))
+
+  command = Command(browser_command)
   command.run(timeout = FLAGS.timeout, pskill = to_kill)
 
   # Kill local and remote tcpdumps.
@@ -123,7 +130,10 @@ def main(argv):
     prepare_interfaces(carrier)
     for region_host in ec2_region_hosts:
       for i, browser in enumerate(FLAGS.browsers):
-        client_experiment(region_host, carrier, browser, 'http', 80)
+        client_experiment(region_host, carrier, browser, 'http', 80, True)
+      for i, browser in enumerate(FLAGS.browsers):
+        client_experiment(region_host, carrier, browser, 'http', 80, True)
+
       for i, browser in enumerate(FLAGS.browsers):
         client_experiment(region_host, carrier, browser, 'http', 80)
       for i, browser in enumerate(FLAGS.browsers):
@@ -133,15 +143,12 @@ def main(argv):
         client_experiment(region_host, carrier, browser, 'https', 443)
       for i, browser in enumerate(FLAGS.browsers):
         client_experiment(region_host, carrier, browser, 'https', 443)
-      for i, browser in enumerate(FLAGS.browsers):
-        client_experiment(region_host, carrier, browser, 'https', 443)
 
       for i, browser in enumerate(FLAGS.browsers):
         client_experiment(region_host, carrier, browser, 'http', 34343)
       for i, browser in enumerate(FLAGS.browsers):
         client_experiment(region_host, carrier, browser, 'http', 34343)
-      for i, browser in enumerate(FLAGS.browsers):
-        client_experiment(region_host, carrier, browser, 'http', 34343)
+
 
   display.stop()
 
