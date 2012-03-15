@@ -41,6 +41,8 @@ for tsuuid in sorted(tsuuid_files.keys()):
   print '=' * 80
   print tsuuid
   print
+  print '  Client'
+  print
   for convo in client_convos_file_time:
     print '  %15s:%-5s -> (%15s:%-5s)' % (convo[0], convo[1], convo[2], convo[3])
     client_rtts = [float(val) for val in client_convos_rtt.get(convo)]
@@ -51,7 +53,7 @@ for tsuuid in sorted(tsuuid_files.keys()):
     print
 
   print '  ' + '-' * 78
-
+  print '  Server'
   print
   for convo in server_convos_file_time:
     print '  %15s:%-5s -> (%15s:%-5s)' % (convo[0], convo[1], convo[2], convo[3])
