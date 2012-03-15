@@ -22,10 +22,18 @@ class TsharkAnalysis(object):
     return ret
 
   def analyze(self):
+    file_metadata = self.filename.split('.')[0]
+    timestamp, uuid, location, operator, browser, port = file_metadata.split('_')
+
     start_time_cmd = 'tshark -r %s  -e frame.time -T fields -c 1 '\
         '"dns.qry.name contains amazonaws.com"' % self.filename
-    finish_time_cmd = 'tshark -r %s -e frame.time -T fields | tail -n 1' % \
-        self.filename
+
+    if port == '443':
+      start_time_cmd = 'tshark -r %s  -e frame.time -T fields -c 1 '\
+          '"ssl.app_data"' % self.filename
+
+    finish_time_cmd = 'tshark -r %s -e frame.time -T fields '\
+        '-R "tcp.flags.fin == 1 and tcp.seq > 1" -c 1' % self.filename
 
     start_p = subprocess.Popen(
       start_time_cmd, shell=True, stdout=subprocess.PIPE)
@@ -35,9 +43,7 @@ class TsharkAnalysis(object):
     start_time = self._frame_time_epoch_conversion(start_p.stdout.read())
     finish_time = self._frame_time_epoch_conversion(finish_p.stdout.read())
     duration = finish_time - start_time
-    file_metadata = self.filename.split('.')[0]
-    timestamp, uuid, location, operator, browser, port = file_metadata.split('_')
-    print '%(timestamp)s,%(location)s,%(operator)s,%(port)s,%(duration)f' % locals()
+    print '%(timestamp)s,%(location)s,%(operator)s,%(port)s,%(browser)s,%(duration)f' % locals()
 
 
 def main(argv):
