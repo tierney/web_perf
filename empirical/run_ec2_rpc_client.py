@@ -54,12 +54,11 @@ def prepare_interfaces(carrier):
   time.sleep(_IFUP_PAUSE)
 
 
-def client_experiment(region_host, carrier, browser, protocol, port,
+def client_experiment(region, host, carrier, browser, protocol, port,
                       port80explicit=False):
   global _CARRIER_IFACES_MAGIC_DICT
 
   port = str(port)
-  region, host = region_host.split(',')
   interface = _CARRIER_IFACES_MAGIC_DICT.get(carrier)
   timestamp = time.strftime('%Y-%m-%d-%H-%M-%S')
 
@@ -76,7 +75,8 @@ def client_experiment(region_host, carrier, browser, protocol, port,
   pcap_name = '%s_%s_%s_%s_%s_%s.client.pcap' % \
       (timestamp, uuid, region, carrier, browser, port)
   tcpdump = subprocess.Popen(
-    shlex.split('tcpdump -i %s -w %s' % (interface, pcap_name)))
+    shlex.split('tcpdump -i %s -w %s' % (interface, pcap_name)),
+    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
   # Start browser
   # TODO(tierney): Currently only supports chrome and firefox.
@@ -126,29 +126,41 @@ def main(argv):
                                       FLAGS.list_host +
                                       FLAGS.list_path).readlines()]
 
+  ec2_region_browser_host = {}
+  ec2_region_hosts_temp = {}
+  for ec2_region_host in ec2_region_hosts:
+    region, host = ec2_region_host.split(',')
+    if region not in ec2_region_hosts_temp:
+      ec2_region_hosts_temp[region] = []
+    ec2_region_hosts_temp[region].append(host)
+
+  for region in ec2_region_hosts_temp:
+    if region not in ec2_region_browser_host:
+      ec2_region_browser_host[region] = {}
+    for i, host in enumerate(ec2_region_hosts_temp.get(region)):
+      ec2_region_browser_host[region][FLAGS.browsers[i]] = host
+
   for carrier in _CARRIER_IFACES_MAGIC_DICT:
     prepare_interfaces(carrier)
-    for region_host in ec2_region_hosts:
-      for i, browser in enumerate(FLAGS.browsers):
-        client_experiment(region_host, carrier, browser, 'http', 80, True)
-      for i, browser in enumerate(FLAGS.browsers):
-        client_experiment(region_host, carrier, browser, 'http', 80, True)
 
-      for i, browser in enumerate(FLAGS.browsers):
-        client_experiment(region_host, carrier, browser, 'http', 80)
-      for i, browser in enumerate(FLAGS.browsers):
-        client_experiment(region_host, carrier, browser, 'http', 80)
+    for region in ec2_region_browser_host:
+      for browser in ec2_region_browser_host.get(region):
+        host = ec2_region_browser_host.get(region).get(browser)
 
-      for i, browser in enumerate(FLAGS.browsers):
-        client_experiment(region_host, carrier, browser, 'https', 443)
-      for i, browser in enumerate(FLAGS.browsers):
-        client_experiment(region_host, carrier, browser, 'https', 443)
+        client_experiment(region, host, carrier, browser, 'http', 80)
+        client_experiment(region, host, carrier, browser, 'http', 80)
+        client_experiment(region, host, carrier, browser, 'http', 80)
+        client_experiment(region, host, carrier, browser, 'http', 80)
 
-      for i, browser in enumerate(FLAGS.browsers):
-        client_experiment(region_host, carrier, browser, 'http', 34343)
-      for i, browser in enumerate(FLAGS.browsers):
-        client_experiment(region_host, carrier, browser, 'http', 34343)
+        client_experiment(region, host, carrier, browser, 'https', 443)
+        client_experiment(region, host, carrier, browser, 'https', 443)
+        client_experiment(region, host, carrier, browser, 'https', 443)
+        client_experiment(region, host, carrier, browser, 'https', 443)
 
+        client_experiment(region, host, carrier, browser, 'http', 34343)
+        client_experiment(region, host, carrier, browser, 'http', 34343)
+        client_experiment(region, host, carrier, browser, 'http', 34343)
+        client_experiment(region, host, carrier, browser, 'http', 34343)
 
   display.stop()
 
