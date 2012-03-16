@@ -25,9 +25,10 @@ class TsharkAnalysis(object):
     file_metadata = self.filename.split('.')[0]
     timestamp, uuid, location, operator, browser, port = file_metadata.split('_')
 
-    start_time_cmd = 'tshark -r %s  -e frame.time -T fields -c 1 '\
-        '"dns.qry.name contains amazonaws.com"' % self.filename
-
+    # Not including DNS time.
+    if '80' == port or '34343' == port:
+      start_time_cmd = 'tshark -r %s -d tcp.port==%s,http -e frame.time '\
+          '-T fields -c 1 http.request' % (self.filename, port)
     if port == '443':
       start_time_cmd = 'tshark -r %s  -e frame.time -T fields -c 1 '\
           '"ssl.app_data"' % self.filename
@@ -43,7 +44,8 @@ class TsharkAnalysis(object):
     start_time = self._frame_time_epoch_conversion(start_p.stdout.read())
     finish_time = self._frame_time_epoch_conversion(finish_p.stdout.read())
     duration = finish_time - start_time
-    print '%(timestamp)s,%(location)s,%(operator)s,%(port)s,%(browser)s,%(duration)f' % locals()
+    print '%(timestamp)s,%(location)s,%(operator)s,%(port)s,'\
+        '%(browser)s,%(duration)f' % locals()
 
 
 def main(argv):

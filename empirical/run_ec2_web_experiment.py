@@ -21,7 +21,7 @@ from TimeoutServerProxy import TimeoutServerProxy
 
 FLAGS = gflags.FLAGS
 
-ALLOWED_CIDR_IPS = ['216.165.0.0/16'] + \
+ALLOWED_CIDR_IPS = ['216.165.0.0/16', '129.98.120.0/24'] + \
     [line.strip() for line in open('cell_phone_prefixes.txt').readlines()]
 
 REGIONS_LIST = [
@@ -31,7 +31,7 @@ REGIONS_LIST = [
   'ap-northeast-1',
   'us-west-1',
   'us-west-2',
-  # 'ap-southeast-1',
+  'ap-southeast-1',
   ]
 
 gflags.DEFINE_multistring('regions', REGIONS_LIST, 'regions to spawn experiment to',
@@ -80,7 +80,6 @@ class SecurityGroups(object):
         self.delete()
     return self.protocol_port.keys()
 
-
   def delete(self):
     for protocol in self.protocol_port:
       try:
@@ -93,7 +92,7 @@ class Ec2Controller(threading.Thread):
   def __init__(self, region):
     threading.Thread.__init__(self)
     self.region = region
-    self.instance = None
+    self.instances = None
     self.connection = None
     self.state = None
     self.stop = threading.Event()
@@ -165,6 +164,8 @@ chmod +x run_ec2_rpc_server.py
 ./run_ec2_rpc_server.py -p %d &
 """ % (FLAGS.rpcport)
 
+    # TODO(tierney): Let's have multiple instances on the reservation: one for
+    # each browser to test.
     reservation = image.run(min_count=1,
                             max_count=1,
                             key_name=FLAGS.keypair,
@@ -172,21 +173,30 @@ chmod +x run_ec2_rpc_server.py
                             security_groups=security_groups,
                             instance_type='t1.micro')
 
-    self.instance = reservation.instances[0]
+    self.instances = reservation.instances
     time_waited = 0
-    logging.info('[%s] Launching instance.' % self.region.name)
-    while 'running' != self.instance.state:
-      time.sleep(1)
+    logging.info('[%s] Launching instances.' % self.region.name)
+    while True:
+      num_running = 0
+      for instance in self.instances:
+        if 'running' == self.instance.state:
+          num_running += 1
+      if len(self.instances) == num_running:
+        break
+
       time_waited += 1
       try:
-        self.instance.update()
+        for instance in self.instances:
+          instance.update()
       except boto.exception.EC2ResponseError:
         pass
+      time.sleep(1)
 
-    logging.info(' Launched: %s,%s' % (self.region.name,
-                                       self.instance.public_dns_name))
+    for instance in self.instances:
+      logging.info(' Launched: %s,%s' % (self.region.name,
+                                         instance.public_dns_name))
     with open(self.public_dns_names_path, 'a') as fh:
-      fh.write('%s,%s\n' % (self.region.name, self.instance.public_dns_name))
+      fh.write('%s,%s\n' % (self.region.name, instance.public_dns_name))
       fh.flush()
 
     self.state = 'running'
@@ -194,13 +204,25 @@ chmod +x run_ec2_rpc_server.py
     while not self.stop.is_set():
       time.sleep(1)
 
-    self.instance.terminate()
-    time_waited = 0
-    logging.info('[%s] Terminating instance.' % self.region.name)
-    while 'terminated' != self.instance.state:
+    for instance in self.instances:
+      instance.terminate()
+      time_waited = 0
+      logging.info('[%s] Terminating instance %s.' % \
+                     (self.region.name, instance.public_dns_name))
+
+    while True:
+      num_terminated = 0
+      for instance in self.instances:
+        if 'terminated' == instance.state:
+          num_terminated += 1
+      if len(self.instances) == num_terminated:
+        break
+
+      for instance in self.instances:
+        instance.update()
+
       time.sleep(1)
       time_waited += 1
-      self.instance.update()
 
     SecurityGroups(self).delete()
 
@@ -226,6 +248,7 @@ def main(argv):
   public_dns_path = \
       os.path.expanduser(os.path.join(FLAGS.wwwpath, 'public_dns_names.txt'))
   with open(public_dns_path, 'w') as fh: pass
+
 
   # Fire up controllers and the EC2 instances..
   controllers = [Ec2Controller(region) for region in regions]

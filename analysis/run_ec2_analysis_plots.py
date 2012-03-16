@@ -26,13 +26,11 @@ def average(data):
     return 0
   return (sum(data) / (1. * len(data)))
 
-def plot_data(operator_to_plot, data_lines):
+def plot_data(operator_to_plot, browser_to_plot, data_lines):
   duration_dict = {}
   for data_line in data_lines:
     timestamp, ec2_region, operator, port, browser, duration = data_line.split(',')
-    if operator != operator_to_plot:
-      continue
-    if 'firefox' == browser:
+    if operator != operator_to_plot or browser_to_plot != browser:
       continue
 
     # Format key for dictionary.
@@ -90,18 +88,19 @@ def plot_data(operator_to_plot, data_lines):
         plt.xlabel(' '.join(key))
         plt.ylim(0,max_val)
         print port, data[0], data
-        plt.bar(2.1, data[0], color='r', alpha=0.7, label = 'P.34343')
+        plt.bar(.6, data[0], color='r', alpha=0.7, label = 'P.34343')
 
       if '443' == port:
         plt.subplot(num_rows,1, row_num)
         plt.xlabel(' '.join(key))
         plt.ylim(0,max_val)
-        plt.bar(4.1, average(data), color='g', alpha=0.7, label = 'SPDY')
+        plt.bar(2.6, average(data), color='g', alpha=0.7, label = 'SPDY')
 
     leg = plt.legend(loc='lower left', fancybox=True)
     leg.get_frame().set_alpha(0.2)
 
-  plt.savefig(operator_to_plot + '.png', bbox_inches='tight')
+  plt.savefig('%s_%s.png' % (operator_to_plot, browser_to_plot),
+              bbox_inches='tight')
   plt.clf()
 
 def main(argv):
@@ -114,8 +113,10 @@ def main(argv):
   with open('duration.log') as fh:
     data_lines = [line.strip() for line in fh.readlines()]
 
-  plot_data('verizon', data_lines)
-  plot_data('tmobile', data_lines)
+  plot_data('verizon', 'firefox', data_lines)
+  plot_data('tmobile', 'firefox', data_lines)
+  plot_data('verizon', 'chrome', data_lines)
+  plot_data('tmobile', 'chrome', data_lines)
 
 
 if __name__=='__main__':
