@@ -286,11 +286,10 @@ def main(argv):
           if server.ready():
             rpc_ready += 1
         except Exception, e:
-          waiting_on.append(
-            '%s,%s' % (controller.region.name, instance.public_dns_name))
+          waiting_on.append(instance.public_dns_name)
 
-    sys.stdout.write('Waiting on: %-200s\r' % (200 * ' '))
-    sys.stdout.write('Waiting on: %-200s\r' % (' '.join(waiting_on)))
+    sys.stdout.write('Waiting on:    instances\r')
+    sys.stdout.write('Waiting on: %2d instances\r' % (len(waiting_on)))
     sys.stdout.flush()
     if num_instances == rpc_ready:
       break
