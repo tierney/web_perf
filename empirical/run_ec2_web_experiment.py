@@ -12,7 +12,9 @@ import threading
 import time
 import xmlrpclib
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(
+  format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+  stream=sys.stdout, level=logging.INFO)
 
 import boto
 from boto import ec2
@@ -112,7 +114,7 @@ class Ec2Controller(threading.Thread):
     logging.info('[%s] Creating Security groups...' % self.region.name)
     security_groups = SecurityGroups(self).create()
     logging.info('[%s] Security groups created: %s.' % \
-                   (self.region.name, str(security_groups)))
+                   (self.region.name, ', '.join(security_groups)))
 
     user_data = """#!/bin/bash
 set -e -x
@@ -166,8 +168,8 @@ chmod +x run_ec2_rpc_server.py
 
     # TODO(tierney): Let's have multiple instances on the reservation: one for
     # each browser to test.
-    reservation = image.run(min_count=1,
-                            max_count=1,
+    reservation = image.run(min_count=2,
+                            max_count=2,
                             key_name=FLAGS.keypair,
                             user_data = user_data,
                             security_groups=security_groups,
@@ -175,11 +177,11 @@ chmod +x run_ec2_rpc_server.py
 
     self.instances = reservation.instances
     time_waited = 0
-    logging.info('[%s] Launching instances.' % self.region.name)
+    logging.info('[%s] Launching %d instances.' % (self.region.name, len(self.instances)))
     while True:
       num_running = 0
       for instance in self.instances:
-        if 'running' == self.instance.state:
+        if 'running' == instance.state:
           num_running += 1
       if len(self.instances) == num_running:
         break
@@ -195,9 +197,9 @@ chmod +x run_ec2_rpc_server.py
     for instance in self.instances:
       logging.info(' Launched: %s,%s' % (self.region.name,
                                          instance.public_dns_name))
-    with open(self.public_dns_names_path, 'a') as fh:
-      fh.write('%s,%s\n' % (self.region.name, instance.public_dns_name))
-      fh.flush()
+      with open(self.public_dns_names_path, 'a') as fh:
+        fh.write('%s,%s\n' % (self.region.name, instance.public_dns_name))
+        fh.flush()
 
     self.state = 'running'
 
@@ -273,19 +275,24 @@ def main(argv):
   while True:
     rpc_ready = 0
     waiting_on = []
+    num_instances = 0
     for controller in controllers:
-      try:
-        server = TimeoutServerProxy(
-          'http://%s:%d' % (controller.instance.public_dns_name, FLAGS.rpcport),
-          timeout = 5)
-        if server.ready():
-          rpc_ready += 1
-      except Exception, e:
-        waiting_on.append(controller.region.name)
-    sys.stdout.write('Waiting on: %-80s\r' % (80 * ' '))
-    sys.stdout.write('Waiting on: %-80s\r' % (' '.join(waiting_on)))
+      for instance in controller.instances:
+        num_instances += 1
+        try:
+          server = TimeoutServerProxy(
+            'http://%s:%d' % (instance.public_dns_name, FLAGS.rpcport),
+            timeout = 5)
+          if server.ready():
+            rpc_ready += 1
+        except Exception, e:
+          waiting_on.append(
+            '%s,%s' % (controller.region.name, instance.public_dns_name))
+
+    sys.stdout.write('Waiting on: %-200s\r' % (200 * ' '))
+    sys.stdout.write('Waiting on: %-200s\r' % (' '.join(waiting_on)))
     sys.stdout.flush()
-    if len(controllers) == rpc_ready:
+    if num_instances == rpc_ready:
       break
     time.sleep(2)
 

@@ -17,8 +17,9 @@ def main():
     print '[%-15s] Reservations: %s' % (region.name, instances)
     for reserv in instances:
       for inst in reserv.instances:
-        if inst.state == u'running':
-          print "[%-10s] Terminating instance %s" % (region.name, inst)
+        if inst.state not in [u'shutting-down', u'terminated']:
+          print "[%-10s] Terminating instance %s (%s)." % \
+              (region.name, inst, inst.state)
           inst.terminate()
 
 if __name__ == "__main__":
