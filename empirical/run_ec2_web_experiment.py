@@ -117,7 +117,7 @@ class Ec2Controller(threading.Thread):
     user_data = """#!/bin/bash
 set -e -x
 export DEBIAN_FRONTEND=noninteractive
-apt-get install apache2 python-gflags traceroute -y
+apt-get install apache2 python-gflags traceroute tshark -y
 a2dissite default
 
 wget http://theseus.news.cs.nyu.edu/generate_apache_site.py

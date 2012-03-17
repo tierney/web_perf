@@ -42,9 +42,26 @@ class Tcpdump:
 
   def stop(self, timestamp, uuid, region, carrier, browser, port, pid):
     os.kill(pid, signal.SIGKILL)
+
+    tshark = subprocess.Popen(
+      shlex.split('tshark -r %s -n -z conv,tcp | grep "<->"'), shell=True,
+      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    local_ip = get_ip_address('eth0')
+    ret = set()
+    for line in tshark.stdout.readlines():
+      output = line.strip().split()
+      ip_a, port_a = output[0].split(':')
+      ip_b, port_b = output[2].split(':')
+
+      if ip_a == local_ip and port_a == port:
+        ret.add(ip_b)
+      if ip_b == local_ip and port_b == port:
+        ret.add(ip_a)
+
     subprocess.call(['bzip2', '%s_%s_%s_%s_%s_%s.server.pcap' % \
                        (timestamp, uuid, region, carrier, browser, port)])
-    return True
+    return list(ret)
 
   def ready(self):
     return True
