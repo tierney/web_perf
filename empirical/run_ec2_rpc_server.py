@@ -59,8 +59,21 @@ class Tcpdump:
       if ip_b == local_ip and port_b == port:
         ret.add(ip_a)
 
+    tr_files = []
+    for ip_addr in ret:
+      for i in range(3):
+        # traceroute -n ip_addr
+        tr_file = '%s_%s_%s_%s_%s_%s_%s.%d.server.traceroute' % \
+            (timestamp, uuid, region, carrier, browser, port, ip_addr, i)
+        tr_files.append(tr_file)
+        with open(tr_file, 'w') as tr_fh:
+          tr = subprocess.Popen('traceroute %s' % (ip_addr, tr_file),
+                                shell=True, stdout=tr_fh)
+          tr.wait()
     subprocess.call(['bzip2', '%s_%s_%s_%s_%s_%s.server.pcap' % \
                        (timestamp, uuid, region, carrier, browser, port)])
+    for tr_file in tr_files:
+      subprocess.call(['bzip2', tr_file])
     return list(ret)
 
   def ready(self):

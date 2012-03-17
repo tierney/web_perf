@@ -96,7 +96,16 @@ def client_experiment(region, host, carrier, browser, protocol, port,
 
   # Kill local and remote tcpdumps.
   tcpdump.terminate()
-  server.stop(timestamp, uuid, region, carrier, browser, port, pid)
+  proxy_ips = server.stop(timestamp, uuid, region, carrier, browser, port, pid)
+
+  for proxy_ip in proxy_ips:
+    for i in range(3):
+      tr_file = '%s_%s_%s_%s_%s_%s_%s.%d.client.traceroute' % \
+          (timestamp, uuid, region, carrier, browser, port, ip_addr, i)
+      with open(tr_file, 'w') as tr_fh:
+        tr = subprocess.Popen('traceroute %s' % (ip_addr, tr_file),
+                              shell=True, stdout=tr_fh)
+        tr.wait()
 
   # Zip up local tcpdump.
   subprocess.call(['bzip2', pcap_name])

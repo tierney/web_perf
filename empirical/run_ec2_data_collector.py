@@ -25,17 +25,19 @@ def main(argv):
 
   for region_host in ec2_region_hosts:
     region, host = region_host.split(',')
-    if region == 'ap-southeast-1':
-      continue
 
-    copy = subprocess.Popen(shlex.split(
+    subprocess.call(shlex.split(
         'scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ' \
           'ubuntu@%s:/*.server.pcap.bz2 .' % (host)))
-    copy.wait()
-    rm = subprocess.Popen(shlex.split(
+
+    subprocess.call(shlex.split(
+        'scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ' \
+          'ubuntu@%s:/*.server.traceroute.bz2 .' % (host)))
+
+    subprocess.call(shlex.split(
         'ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ' \
-          'ubuntu@%s sudo rm -f /*.server.pcap.bz2' % (host)))
-    rm.wait()
+          'ubuntu@%s sudo rm -f /*.server.pcap.bz2 /*.server.traceroute.bz2' \
+          % (host)))
 
 
 if __name__=='__main__':
