@@ -29,12 +29,14 @@ class TsharkAnalysis(object):
     if '80' == port or '34343' == port:
       start_time_cmd = 'tshark -r %s -d tcp.port==%s,http -e frame.time '\
           '-T fields -c 1 http.request' % (self.filename, port)
+
     if port == '443':
       start_time_cmd = 'tshark -r %s  -e frame.time -T fields -c 1 '\
           '"ssl.app_data"' % self.filename
 
     finish_time_cmd = 'tshark -r %s -e frame.time -T fields '\
-        '-R "tcp.flags.fin == 1 and tcp.seq > 1" -c 1' % self.filename
+        '-R "tcp.flags.fin == 1 and tcp.seq > 1 and tcp.port == %s and '\
+        'frame.number > 100" -c 1' % (self.filename, port)
 
     start_p = subprocess.Popen(
       start_time_cmd, shell=True, stdout=subprocess.PIPE)
