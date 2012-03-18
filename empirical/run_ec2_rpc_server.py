@@ -86,7 +86,7 @@ class Tcpdump:
 
     logging.info('Zipping pcap.')
     subprocess.call(['bzip2', '%s_%s_%s_%s_%s_%s.server.pcap' % \
-                       (timestamp, uuid, region, carrier, browser, port)])x
+                       (timestamp, uuid, region, carrier, browser, port)])
 
     logging.info('Zipping traceroutes.')
     for tr_file in tr_files:
