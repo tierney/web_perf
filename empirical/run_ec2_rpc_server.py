@@ -92,7 +92,7 @@ class Tcpdump:
     for tr_file in tr_files:
       subprocess.call(['bzip2', tr_file])
 
-    logging.('Returning list.')x
+    logging.info('Returning list.')
     return list(ret)
 
   def ready(self):
