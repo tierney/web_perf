@@ -207,10 +207,12 @@ chmod +x run_ec2_rpc_server.py
       time.sleep(1)
 
     for instance in self.instances:
+      name = instance.name
+      dns_name = instance.public_dns_name
       instance.terminate()
       time_waited = 0
-      logging.info('[%s] Terminating instance %s.' % \
-                     (self.region.name, instance.public_dns_name))
+      logging.info('[%s] Terminating instance %s %s.' % \
+                     (self.region.name, name, dns_name))
 
     while True:
       num_terminated = 0

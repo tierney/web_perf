@@ -55,7 +55,7 @@ class Tcpdump:
 
     logging.info('Finding conversations.')
     tshark = subprocess.Popen(
-      shlex.split('tshark -r %s -n -z conv,tcp | grep "<->"' % filename),
+      'tshark -r %s -n -z conv,tcp | grep "<->"' % filename,
       shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     logging.info('Parsing IP addrs.')
