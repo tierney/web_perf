@@ -2,6 +2,11 @@
 
 import fcntl
 import logging
+
+logging.basicConfig(
+  format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+  filename='rpc_server.log', level=logging.INFO)
+
 import os
 import shlex
 import signal

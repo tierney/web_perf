@@ -70,6 +70,7 @@ def client_experiment(region, host, carrier, browser, protocol, port,
                  (host, FLAGS.rpcport, '_'.join([timestamp, uuid, region,
                                                  carrier, browser, port])))
   pid = server.start(timestamp, uuid, region, carrier, browser, port)
+  logging.info('Started on server with PID %d.' % pid)
 
   # Start our tcpdump
   pcap_name = '%s_%s_%s_%s_%s_%s.client.pcap' % \
@@ -91,12 +92,14 @@ def client_experiment(region, host, carrier, browser, protocol, port,
     browser_command = './BrowserRun.py --browser %s --domain %s' % \
         (browser, protocol + '://' + host + ':' + str(port))
 
+  logging.info('Starting browser %s.' % browser)
   command = Command(browser_command)
   command.run(timeout = FLAGS.timeout, pskill = to_kill)
 
   # Kill local and remote tcpdumps.
   tcpdump.terminate()
   proxy_ips = server.stop(timestamp, uuid, region, carrier, browser, port, pid)
+  logging.info('Proxies: %s.' % ', '.join(proxy_ips))
 
   for proxy_ip in proxy_ips:
     for i in range(3):
@@ -157,19 +160,19 @@ def main(argv):
         host = ec2_region_browser_host.get(region).get(browser)
 
         client_experiment(region, host, carrier, browser, 'http', 80)
-        client_experiment(region, host, carrier, browser, 'http', 80)
-        client_experiment(region, host, carrier, browser, 'http', 80)
-        client_experiment(region, host, carrier, browser, 'http', 80)
+        # client_experiment(region, host, carrier, browser, 'http', 80)
+        # client_experiment(region, host, carrier, browser, 'http', 80)
+        # client_experiment(region, host, carrier, browser, 'http', 80)
 
-        client_experiment(region, host, carrier, browser, 'https', 443)
-        client_experiment(region, host, carrier, browser, 'https', 443)
-        client_experiment(region, host, carrier, browser, 'https', 443)
-        client_experiment(region, host, carrier, browser, 'https', 443)
+        # client_experiment(region, host, carrier, browser, 'https', 443)
+        # client_experiment(region, host, carrier, browser, 'https', 443)
+        # client_experiment(region, host, carrier, browser, 'https', 443)
+        # client_experiment(region, host, carrier, browser, 'https', 443)
 
-        client_experiment(region, host, carrier, browser, 'http', 34343)
-        client_experiment(region, host, carrier, browser, 'http', 34343)
-        client_experiment(region, host, carrier, browser, 'http', 34343)
-        client_experiment(region, host, carrier, browser, 'http', 34343)
+        # client_experiment(region, host, carrier, browser, 'http', 34343)
+        # client_experiment(region, host, carrier, browser, 'http', 34343)
+        # client_experiment(region, host, carrier, browser, 'http', 34343)
+        # client_experiment(region, host, carrier, browser, 'http', 34343)
 
   display.stop()
 
