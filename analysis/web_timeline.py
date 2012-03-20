@@ -8,6 +8,7 @@ L4_CONVO_FOUR_TUPLE = re.compile(
   '([0-9]+(?:\.[0-9]+){3}):([0-9]+)\ +<-> ([0-9]+(?:\.[0-9]+){3}):([0-9]+)')
 
 filename = 'youtube.pcap'
+filename = '/scratch/data/ec2_017/2012-03-15-22-11-23_61ec49b3-9b38-4c36-bbbe-276847e2a67f_ap-northeast-1_tmobile_chrome_80.client.pcap'
 decode_as_http = 80
 command = 'tshark -n -d tcp.port==%d,http -e frame.number -e frame.len '\
     '-e frame.time_relative -e ip.src -e tcp.srcport -e ip.dst -e tcp.dstport '\

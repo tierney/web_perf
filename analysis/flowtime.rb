@@ -1,160 +1,85 @@
 #!/usr/bin/env ruby
-##
-## Copyright 2007 Matthew Lee Hinman
-## matthew [dot] hinman [at] gmail [dot] com
-##
-## Generate a file to plot pcap traffic flows over time
-## To get usage: ./flowtime --help
-##
 
-if ARGV.length < 3  or ARGV.to_s =~ /--help/
-  STDERR.puts "Usage:"
-  STDERR.puts "flowtime [-w #] [-h #] [-g] [--help] <pcapfile> <ipaddr> <outfile_bas>"
-  STDERR.puts "-w specify the width, default: 2000"
-  STDERR.puts "-h specify the height, default: 2000"
-  STDERR.puts "-g automatically try generate a png (requires 'EasyTimeline' and 'pl' in path)"
-  STDERR.puts "<pcapfile> the packet file to generate a graph of"
-  STDERR.puts "<ipaddr> source address to generate a graph for, 'all' for all IPs"
-  STDERR.puts "<outfile_base> basename for the output file"
-  exit(0)
-end
+$filename = ARGV[ARGV.length-1].to_s
+is_client = $filename.include? 'client'
 
-$WIDTH = ARGV.to_s =~ /-w\s*(\d+)/i ? $1.to_i : 2000
-$HEIGHT = ARGV.to_s =~ /-h\s*(\d+)/i ? $1.to_i : 2000
-$autograph = ARGV.to_s =~ /-g/i ? true : false
-STDERR.puts "Width  : #{$WIDTH}"
-STDERR.puts "Height : #{$HEIGHT}"
-
-$filename = ARGV[ARGV.length-3].to_s
-$ipaddr = ARGV[ARGV.length-2].to_s
-$outfile = ARGV[ARGV.length-1].to_s
-STDERR.puts "Outfile: #{$outfile}.txt"
-$stdout = File.new("#{$outfile}.txt","w")
 unless File.exist?($filename)
   puts "File: #{$filename} does not exist."
   exit(0)
 end
 
-events = []
-$flow_start = 0.0
-$flow_finish = 0.0
+STDERR.puts "Generating flow data..."
+tshark_fields = [ 'frame.time_relative',
+                  'ip.src',
+                  'tcp.srcport',
+                  'udp.srcport',
+                  'ip.dst',
+                  'tcp.dstport',
+                  'udp.dstport',
+                  'frame.len']
+derived_fields = ['srcport', 'dstport', 'server_ip', 'server_port', 'direction', 'stream_id']
 
-class TimeLine
-  attr_accessor :stime,:etime,:sport,:dport,:addr
+SERVER_PORTS = [80, 443, 34343]
 
-  def initialize(stime,etime,sport, dport,addr)
-    @stime = stime
-    @etime = etime
-    @sport = sport.to_i
-    @dport = dport.to_i
-    @addr = addr
-  end
-
+if is_client
+  first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields -R "dns.qry.name contains amazon"`.to_i
+else
+  server_condition = 'tcp.dstport == ' + SERVER_PORTS.join(' or tcp.dstport == ')
+  first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields -R "#{server_condition}"`.to_i
 end
 
-STDERR.puts "Generating flow data..."
-tshark_output = `tshark -n -e frame.time_relative -e ip.src -e tcp.srcport -e udp.srcport -e ip.dst -e tcp.dstport -e udp.dstport -T fields -r #{$filename}`
+tshark_query = '-e ' + tshark_fields.join(' -e ')
+tshark_output = `tshark -n #{tshark_query} -T fields -E separator=, -r #{$filename} -R "not dns.qry.name contains google and not arp and frame.number >= #{first_packet}"`
 
 STDERR.puts "Parsing tshark output..."
+STDOUT.puts tshark_fields.join(', ') + ', ' + derived_fields.join(', ')
+
+DEST_PORTS = [53] + SERVER_PORTS
+
+init_time = -1.0
 tshark_output.each_line do |line|
+  # Preprocess the line.
   line.strip!
-  data = line.split(/\s+/)
-  if data.length < 4
-    next
+  data = line.split(/,/)
+  vars = Hash.new
+  tshark_fields.each { |f| vars[f] = data.shift }
+
+  vars['frame.time_relative'] = vars['frame.time_relative'].to_f
+  if init_time < 0.0
+    init_time = vars['frame.time_relative']
+    STDERR.puts init_time
   end
 
-  STDERR.puts data.join ','
+  vars['frame.time_relative'] -= init_time
 
-  events.unshift(
-    TimeLine.new(
-      data[0].to_f,
-      data[0].to_f + 0.01,
-      data[2],
-      data[4],
-      data[3]))
+  vars['srcport'] = (vars['tcp.srcport'] != '' ? vars['tcp.srcport'] : vars['udp.srcport']).to_i
+  vars['dstport'] = (vars['tcp.dstport'] != '' ? vars['tcp.dstport'] : vars['udp.dstport']).to_i
 
-   $flow_finish = 1 + data[0].to_f if $flow_finish < 1 + data[0].to_f
-
-end
-STDERR.puts "done."
-
-events.each { |e|
-  e.stime -= $flow_start
-  e.etime -= $flow_start
-#  STDERR.puts "#{e.stime}, #{e.etime}"
-}
-
-$flow_finish -= $flow_start
-$flow_start = 0
-
-STDERR.print "Generating graph data..."
-puts "ImageSize  = width:#{$WIDTH} height:#{$HEIGHT}"
-puts "PlotArea   = width:#{$WIDTH-155} height:#{$HEIGHT-50} left:150 bottom:40"
-puts "AlignBars  = justify"
-
-puts "Colors ="
-puts "  id:http       value:blue        legend:HTTP"
-puts "  id:ssl        value:red         legend:SSL"
-puts "  id:dns        value:powderblue        legend:DNS"
-puts "  id:noport     value:pink  legend:NoPort"
-puts "  id:other      value:gray(0.1)      legend:Other"
-puts "  id:lightgrey  value:gray(0.9)"
-puts "  id:darkgrey   value:gray(0.1)"
-
-puts "Period     = from:#{$flow_start} till:#{$flow_finish}"
-puts "TimeAxis   = orientation:horizontal"
-inc = ($flow_finish - $flow_start) / ($WIDTH / 50)
-inc = inc.to_i
-inc = 1 if inc < 1
-puts "ScaleMajor = increment:#{inc} start:#{$flow_start.ceil} gridcolor:lightgrey"
-
-puts "PlotData="
-
-events.each { |e|
-  if e.dport == 5353
-    next
-  end
-
-  print "  bar: #{e.addr}-#{e.sport}-#{e.dport} "
-  case e.dport
-  when 0
-    print "color:noport "
-  when 80
-    print "color:http "
-  when 443
-    print "color:ssl "
-  when 22
-    print "color:ssh "
-  when 23
-    print "color:telnet "
-  when 21
-    print "color:ftp "
-  when 25
-    print "color:smtp "
-  when 53
-    print "color:dns "
-  when 67..68
-    print "color:bootp "
-  when 110
-    print "color:pop3 "
-  when 137..139
-    print "color:netbios "
-  when 6666..6669,7000
-    print "color:irc "
+  # keep both directions on the same stream id
+  if (is_client and DEST_PORTS.include?(vars['srcport'].to_i)) or
+      (not is_client and not DEST_PORTS.include?(vars['srcport'].to_i))
+    vars['stream_id'] = "#{vars['dstport']}-#{vars['ip.src']}:#{vars['srcport']}"
+    vars['server_ip'] = vars['ip.src']
+    vars['server_port'] = vars['srcport']
+    vars['direction'] = 'incoming'
   else
-    print "color:other "
+    vars['stream_id'] = "#{vars['srcport']}-#{vars['ip.dst']}:#{vars['dstport']}"
+    vars['server_ip'] = vars['ip.dst']
+    vars['server_port'] = vars['dstport']
+    vars['direction'] = 'outgoing'
   end
-#  puts "mark:(line,white) width:7 align:left fontsize:M"
-  puts "  from:#{e.stime}  till:#{e.etime}"
-}
 
-puts "Legend = orientation:vertical position:bottom columns:4 columnwidth:200"
-STDERR.puts "done."
+  if vars['server_ip'].match(/^74.125/) or
+      vars['server_ip'].match(/^173.194/) or
+      vars['srcport'] == 34344 or
+      vars['dstport'] == 34344 # or
+      # (vars['ip.src'].match(/^172.16/) and vars['srcport'] == 53)
+    next
+  end
 
-$defout.close
-
-if $autograph
-  STDERR.print "Automatically creating graph..."
-  system("EasyTimeline -b -i #{$outfile}.txt 2>&1 > /dev/null")
-  STDERR.puts "done. (returned #{$?})"
+  STDOUT.print tshark_fields.map{ |f| vars[f].to_s }.join(', ')
+  STDOUT.print ','
+  STDOUT.puts derived_fields.map{ |f| vars[f].to_s }.join(', ')
 end
+
+STDERR.puts "done."
