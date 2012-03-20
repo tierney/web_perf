@@ -47,5 +47,62 @@ convo = '''25	74	5.178600000	192.168.42.196	38829	74.125.65.93	80	1	0
 79	1204	8.130233000	74.125.65.93	80	192.168.42.196	38829	0	1		200
 80	54	8.130265000	192.168.42.196	38829	74.125.65.93	80	0	1
 908	54	13.707514000	192.168.42.196	38829	74.125.65.93	80	0	1'''
+
+class TcpLine(object):
+  def __init__(self, frame_num, size, timestamp, src_ip, src_port, dst_ip,
+               dst_port, syn, ack, req_uri = None, resp_code = None):
+    self.frame_num = frame_num
+    self.size = size
+    self.timestamp = timestamp
+    self.src_ip = src_ip
+    self.src_port = src_port
+    self.dst_ip = dst_ip
+    self.dst_port = dst_port
+    self.syn = bool(int(syn))
+    self.ack = bool(int(ack))
+    self.req_uri = req_uri
+    self.resp_code = resp_code
+
+SYN_ACK = False
+REQ_ACK = False
+
+convo_name = ''
 for line in convo.split('\n'):
-  print line
+  split_line = line.split('\t')
+  tcp_line = TcpLine(*split_line)
+
+  # SYN
+  if tcp_line.syn and not tcp_line.ack:
+    source_ip = tcp_line.src_ip
+    convo_name = '%s:%s<->%s%s' % (tcp_line.src_ip, tcp_line.src_port,
+                                   tcp_line.dst_ip, tcp_line.dst_port)
+    SYN_ACK = True
+    print convo_name, tcp_line.timestamp,
+    continue
+  # SYNACK
+  if SYN_ACK:
+    print tcp_line.timestamp, 'SYNACK'
+    SYN_ACK = False
+    continue
+
+  # REQUEST
+  if tcp_line.req_uri:
+    REQ_ACK = True
+    print convo_name, tcp_line.timestamp,
+    continue
+  if REQ_ACK:
+    print tcp_line.timestamp, 'GET'
+    REQ_ACK = False
+    continue
+
+  if tcp_line.resp_code:
+    print convo_name, tcp_line.timestamp, tcp_line.timestamp, 'RESP'
+    continue
+
+  if tcp_line.src_ip == source_ip:
+    comment = 'ACK'
+  else:
+    comment = 'RESP'
+  print convo_name, tcp_line.timestamp, tcp_line.timestamp, comment
+
+  # frame_num, size, timestamp, src_ip, src_port, dst_ip, dst_port, syn, ack = line.split('\t')

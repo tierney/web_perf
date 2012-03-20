@@ -2,9 +2,6 @@
 
 import sys
 import logging
-logging.basicConfig(
-  format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-  stream=sys.stdout, level=logging.INFO)
 
 import BaseHTTPServer, select, socket, SocketServer, urlparse, urllib2
 from BaseHTTPServer import BaseHTTPRequestHandler
@@ -105,6 +102,8 @@ class ThreadingHTTPServer (SocketServer.ThreadingMixIn,
 
 if __name__ == '__main__':
   from sys import argv
-  t = ThreadingHTTPServer(('127.0.0.1', 8080),
-                          ProxyHandler)
+  host = '216.165.108.71'
+  port = 34343
+  t = ThreadingHTTPServer((host, port), ProxyHandler)
+  print "Listening at %s:%d" % (host, port)
   t.serve_forever()

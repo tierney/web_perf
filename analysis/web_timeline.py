@@ -14,6 +14,21 @@ command = 'tshark -n -d tcp.port==%d,http -e frame.number -e frame.len '\
     '-e tcp.flags.syn -e tcp.flags.ack -e http.request.full_uri '\
     '-e http.response.code -T fields -r %s' % (decode_as_http, filename)
 
+class TcpLine(object):
+  # Call like this: TcpLine(*(line.split('\t')))
+  def __init__(self, frame_num, size, timestamp, src_ip, src_port, dst_ip,
+               dst_port, syn, ack, req_uri = None, resp_code = None):
+    self.frame_num = frame_num
+    self.size = size
+    self.timestamp = timestamp
+    self.src_ip = src_ip
+    self.src_port = src_port
+    self.dst_ip = dst_ip
+    self.dst_port = dst_port
+    self.syn = syn
+    self.ack = ack
+    self.req_uri = req_uri
+    self.resp_code = resp_code
 
 class PcapTimeline(object):
   window_updates = None
@@ -144,5 +159,3 @@ pt.tcp_convos()
 
 # pt._window_update()
 # window_update_frames = _window_update(filename)
-
-
