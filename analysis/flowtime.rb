@@ -9,7 +9,7 @@
 
 if ARGV.length < 3  or ARGV.to_s =~ /--help/
   STDERR.puts "Usage:"
-  STDERR.puts "flowtime [-w #] [-h #] [-g] [--help] <pcapfile> <ipaddr> <outfile_bas>" 
+  STDERR.puts "flowtime [-w #] [-h #] [-g] [--help] <pcapfile> <ipaddr> <outfile_bas>"
   STDERR.puts "-w specify the width, default: 2000"
   STDERR.puts "-h specify the height, default: 2000"
   STDERR.puts "-g automatically try generate a png (requires 'EasyTimeline' and 'pl' in path)"
@@ -53,28 +53,28 @@ class TimeLine
 end
 
 STDERR.puts "Generating flow data..."
-tshark_output = `tshark -n -e frame.time_relative -e ip.src -e tcp.srcport -e ip.dst -e tcp.dstport -T fields -r #{$filename}`
+tshark_output = `tshark -n -e frame.time_relative -e ip.src -e tcp.srcport -e udp.srcport -e ip.dst -e tcp.dstport -e udp.dstport -T fields -r #{$filename}`
 
 STDERR.puts "Parsing tshark output..."
 tshark_output.each_line do |line|
   line.strip!
   data = line.split(/\s+/)
-  if data.length < 4 
+  if data.length < 4
     next
   end
-  
+
   STDERR.puts data.join ','
-  
+
   events.unshift(
     TimeLine.new(
       data[0].to_f,
-      data[0].to_f + 0.1,
-      data[2], 
+      data[0].to_f + 0.01,
+      data[2],
       data[4],
       data[3]))
-      
+
    $flow_finish = 1 + data[0].to_f if $flow_finish < 1 + data[0].to_f
-  
+
 end
 STDERR.puts "done."
 
@@ -95,9 +95,9 @@ puts "AlignBars  = justify"
 puts "Colors ="
 puts "  id:http       value:blue        legend:HTTP"
 puts "  id:ssl        value:red         legend:SSL"
-puts "  id:dns        value:pink        legend:DNS"
-puts "  id:noport     value:powderblue  legend:NoPort"
-puts "  id:other      value:red      legend:Other"
+puts "  id:dns        value:powderblue        legend:DNS"
+puts "  id:noport     value:pink  legend:NoPort"
+puts "  id:other      value:gray(0.1)      legend:Other"
 puts "  id:lightgrey  value:gray(0.9)"
 puts "  id:darkgrey   value:gray(0.1)"
 
@@ -114,7 +114,7 @@ events.each { |e|
   if e.dport == 5353
     next
   end
-  
+
   print "  bar: #{e.addr}-#{e.sport}-#{e.dport} "
   case e.dport
   when 0
@@ -128,7 +128,7 @@ events.each { |e|
   when 23
     print "color:telnet "
   when 21
-    print "color:ftp "      
+    print "color:ftp "
   when 25
     print "color:smtp "
   when 53

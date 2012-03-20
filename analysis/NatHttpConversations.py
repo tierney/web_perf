@@ -65,13 +65,13 @@ class ConvoParser(object):
 
           if client:
              ack_rtts = subprocess.Popen(
-               shlex.split('tshark -r %s -n -d tcp.port=%d,http -R "ip.dst == %s and tcp.dstport == %s '\
+               shlex.split('tshark -r %s -n -d tcp.port==%d,http -R "ip.dst == %s and tcp.dstport == %s '\
                              'and ip.src == %s and tcp.srcport == %s" -e tcp.analysis.ack_rtt -T fields' % \
                              (filename, self.port_http, ip_client, port_client,
                               ip_server, port_server)), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
           else:
              ack_rtts = subprocess.Popen(
-               shlex.split('tshark -r %s -n -d tcp.port=%d,http -R "ip.src == %s and tcp.srcport == %s '\
+               shlex.split('tshark -r %s -n -d tcp.port==%d,http -R "ip.src == %s and tcp.srcport == %s '\
                              'and ip.dst == %s and tcp.dstport == %s" -e tcp.analysis.ack_rtt -T fields' % \
                              (filename, self.port_http, ip_client, port_client,
                               ip_server, port_server)), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
