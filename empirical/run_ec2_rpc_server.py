@@ -39,19 +39,20 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 
 
 class Tcpdump:
-  def start(self, timestamp, uuid, region, carrier, browser, port):
+  def start(self, timestamp, region, carrier, browser, pipelining, port):
     filename = '%s_%s_%s_%s_%s_%s.server.pcap' % \
-        (timestamp, uuid, region, carrier, browser, port)
+        (timestamp, region, carrier, browser, pipelining, port)
     logging.info('Starting tcpdump %s.' % filename)
     tcpdump = subprocess.Popen(shlex.split('tcpdump -i eth0 -w %s' % filename))
     return tcpdump.pid
 
-  def stop(self, timestamp, uuid, region, carrier, browser, port, pid):
+  def stop(self, timestamp, region, carrier, browser, pipelining, port, pid,
+           do_traceroute):
     logging.info('Killing %d.' % pid)
     os.kill(pid, signal.SIGKILL)
 
     filename = '%s_%s_%s_%s_%s_%s.server.pcap' % \
-        (timestamp, uuid, region, carrier, browser, port)
+        (timestamp, region, carrier, browser, pipelining, port)
 
     logging.info('Finding conversations.')
     tshark = subprocess.Popen(
@@ -71,26 +72,26 @@ class Tcpdump:
       if ip_b == local_ip and port_b == port:
         ret.add(ip_a)
 
-    logging.info('Tracerouting.')
-    tr_files = []
-    for ip_addr in ret:
-      for i in range(3):
-        logging.info('Traceroute %d: %s.' % (i, ip_addr))
-        tr_file = '%s_%s_%s_%s_%s_%s_%s.%d.server.traceroute' % \
-            (timestamp, uuid, region, carrier, browser, port, ip_addr, i)
-        tr_files.append(tr_file)
-        with open(tr_file, 'w') as tr_fh:
-          tr = subprocess.Popen('traceroute %s' % (ip_addr, tr_file),
-                                shell=True, stdout=tr_fh)
-          tr.wait()
+    if do_traceroute:
+      logging.info('Tracerouting.')
+      tr_files = []
+      for ip_addr in ret:
+        for i in range(3):
+          logging.info('Traceroute %d: %s.' % (i, ip_addr))
+          tr_file = '%s_%s_%s_%s_%s_%s.%d.server.traceroute' % \
+              (timestamp, region, carrier, browser, port, ip_addr, i)
+          tr_files.append(tr_file)
+          with open(tr_file, 'w') as tr_fh:
+            subprocess.Popen('traceroute %s' % (ip_addr, tr_file),
+                             shell=True, stdout=tr_fh).wait()
+      logging.info('Zipping traceroutes.')
+      for tr_file in tr_files:
+        subprocess.call(['bzip2', tr_file])
 
     logging.info('Zipping pcap.')
-    subprocess.call(['bzip2', '%s_%s_%s_%s_%s_%s.server.pcap' % \
-                       (timestamp, uuid, region, carrier, browser, port)])
+    subprocess.call(['bzip2', '%s_%s_%s_%s_%s.server.pcap' % \
+                       (timestamp, region, carrier, browser, port)])
 
-    logging.info('Zipping traceroutes.')
-    for tr_file in tr_files:
-      subprocess.call(['bzip2', tr_file])
 
     logging.info('Returning list.')
     return list(ret)

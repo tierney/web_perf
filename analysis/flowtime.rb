@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 
 $filename = ARGV[ARGV.length-1].to_s
-is_client = $filename.include? 'client'
+is_server = $filename.include? 'server'
+is_client = !is_server
 
 unless File.exist?($filename)
   puts "File: #{$filename} does not exist."

@@ -6,7 +6,6 @@ import subprocess
 import sys
 import time
 import urllib2
-from uuid import uuid4
 import xmlrpclib
 
 import gflags
@@ -22,6 +21,8 @@ FLAGS = gflags.FLAGS
 gflags.DEFINE_string('list_host', 'theseus.news.cs.nyu.edu', 'http host with list')
 gflags.DEFINE_string('list_path', '/public_dns_names.txt', 'http path to list')
 
+gflags.DEFINE_integer('num_site_trials', 1, 'number of trials per site',
+                      short_name = 'n')
 gflags.DEFINE_integer('rpcport', 34344, 'RPC port to connect to',
                       short_name = 'p')
 gflags.DEFINE_multistring('browsers', None, 'Browsers to use.',
@@ -35,6 +36,7 @@ gflags.DEFINE_integer('timeout', 60, 'Timeout in seconds.', lower_bound=0,
 gflags.MarkFlagAsRequired('browsers')
 gflags.MarkFlagAsRequired('carrierifaces')
 
+
 def prepare_interfaces(carrier):
   global _CARRIER_IFACES_MAGIC_DICT
 
@@ -46,16 +48,24 @@ def prepare_interfaces(carrier):
 
     iface_to_down = _CARRIER_IFACES_MAGIC_DICT.get(carr)
     logging.info('ifdown-ing %s.' % iface_to_down)
-    subprocess.Popen('ifconfig %s down' % iface_to_down, shell=True).wait()
+    subprocess.call(shlex.split('ifconfig %s down' % iface_to_down))
     time.sleep(_IFDOWN_PAUSE)
 
   logging.info('ifup-ing %s.' % interface)
-  subprocess.Popen('ifconfig %s up' % interface, shell=True).wait()
+  subprocess.call(
+    shlex.split('ifconfig %s up' % interface))
+  if 'delay' == carrier:
+    subprocess.call(
+      shlex.split('tc qdisc add dev %s root netem delay 100ms' % interface))
+  elif 'eth0' == carrier:
+    subprocess.call(
+      shlex.split('tc qdisc del dev %s root netem delay 100ms' % interface))
+
   time.sleep(_IFUP_PAUSE)
 
 
 def client_experiment(region, host, carrier, browser, protocol, port,
-                      port80explicit=False):
+                      do_traceroute, port80explicit=False, pipelining=0):
   global _CARRIER_IFACES_MAGIC_DICT
 
   port = str(port)
@@ -65,16 +75,15 @@ def client_experiment(region, host, carrier, browser, protocol, port,
   # Start server tcpdump
   server = xmlrpclib.ServerProxy('http://%s:%d' % (host, FLAGS.rpcport))
 
-  uuid = str(uuid4())
   logging.info('Calling .start() at http://%s:%d %s.' % \
-                 (host, FLAGS.rpcport, '_'.join([timestamp, uuid, region,
+                 (host, FLAGS.rpcport, '_'.join([timestamp, region,
                                                  carrier, browser, port])))
-  pid = server.start(timestamp, uuid, region, carrier, browser, port)
+  pid = server.start(timestamp, region, carrier, browser, pipelining, port)
   logging.info('Started on server with PID %d.' % pid)
 
   # Start our tcpdump
-  pcap_name = '%s_%s_%s_%s_%s_%s.client.pcap' % \
-      (timestamp, uuid, region, carrier, browser, port)
+  pcap_name = '%s_%s_%s_%s_%s.client.pcap' % \
+      (timestamp, region, carrier, browser, port)
   tcpdump = subprocess.Popen(
     shlex.split('tcpdump -i %s -w %s' % (interface, pcap_name)),
     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -86,11 +95,11 @@ def client_experiment(region, host, carrier, browser, protocol, port,
   elif browser == 'firefox': to_kill = '/usr/lib/firefox-10.0.2/firefox'
 
   if port == '80' and not port80explicit:
-    browser_command = './BrowserRun.py --browser %s --domain %s' % \
-        (browser, protocol + '://' + host)
+    browser_command = './BrowserRun.py --browser %s --domain %s --pipelining %d' % \
+        (browser, protocol + '://' + host, pipelining)
   else:
-    browser_command = './BrowserRun.py --browser %s --domain %s' % \
-        (browser, protocol + '://' + host + ':' + str(port))
+    browser_command = './BrowserRun.py --browser %s --domain %s --pipelining %d' % \
+        (browser, protocol + '://' + host + ':' + str(port), pipelining)
 
   logging.info('Starting browser %s.' % browser)
   command = Command(browser_command)
@@ -98,17 +107,18 @@ def client_experiment(region, host, carrier, browser, protocol, port,
 
   # Kill local and remote tcpdumps.
   tcpdump.terminate()
-  proxy_ips = server.stop(timestamp, uuid, region, carrier, browser, port, pid)
+  proxy_ips = server.stop(
+    timestamp, region, carrier, browser, pipelining, port, pid, do_traceroute)
   logging.info('Proxies: %s.' % ', '.join(proxy_ips))
 
-  for proxy_ip in proxy_ips:
-    for i in range(3):
-      tr_file = '%s_%s_%s_%s_%s_%s_%s.%d.client.traceroute' % \
-          (timestamp, uuid, region, carrier, browser, port, ip_addr, i)
-      with open(tr_file, 'w') as tr_fh:
-        tr = subprocess.Popen('traceroute %s' % (ip_addr, tr_file),
-                              shell=True, stdout=tr_fh)
-        tr.wait()
+  if do_traceroute:
+    for proxy_ip in proxy_ips:
+      for i in range(3):
+        tr_file = '%s_%s_%s_%s_%s_%s.%d.client.traceroute' % \
+            (timestamp, region, carrier, browser, port, ip_addr, i)
+        with open(tr_file, 'w') as tr_fh:
+          subprocess.Popen('traceroute %s' % (ip_addr, tr_file),
+                           shell=True, stdout=tr_fh).wait()
 
   # Zip up local tcpdump.
   subprocess.call(['bzip2', pcap_name])
@@ -138,6 +148,17 @@ def main(argv):
                                       FLAGS.list_host +
                                       FLAGS.list_path).readlines()]
 
+  # Map a browser setting to a host.
+  # e.g., ('browser', 'setting0', 'setting1',...) -> host
+  browser_setting_host = [
+    ('firefox', 0),
+    ('firefox', 8),
+    ('firefox', 16),
+    ('firefox', 32),
+    ('chrome', 0),
+    ('chrome', 1),
+    ]
+
   ec2_region_browser_host = {}
   ec2_region_hosts_temp = {}
   for ec2_region_host in ec2_region_hosts:
@@ -149,30 +170,25 @@ def main(argv):
   for region in ec2_region_hosts_temp:
     if region not in ec2_region_browser_host:
       ec2_region_browser_host[region] = {}
+
     for i, host in enumerate(ec2_region_hosts_temp.get(region)):
-      ec2_region_browser_host[region][FLAGS.browsers[i]] = host
+      ec2_region_browser_host[region][browser_setting_host[i]] = host
 
   for carrier in _CARRIER_IFACES_MAGIC_DICT:
     prepare_interfaces(carrier)
-
     for region in ec2_region_browser_host:
-      for browser in ec2_region_browser_host.get(region):
+      for browser, http_pipelining in ec2_region_browser_host.get(region):
         host = ec2_region_browser_host.get(region).get(browser)
 
-        client_experiment(region, host, carrier, browser, 'http', 80)
-        # client_experiment(region, host, carrier, browser, 'http', 80)
-        # client_experiment(region, host, carrier, browser, 'http', 80)
-        # client_experiment(region, host, carrier, browser, 'http', 80)
-
-        # client_experiment(region, host, carrier, browser, 'https', 443)
-        # client_experiment(region, host, carrier, browser, 'https', 443)
-        # client_experiment(region, host, carrier, browser, 'https', 443)
-        # client_experiment(region, host, carrier, browser, 'https', 443)
-
-        # client_experiment(region, host, carrier, browser, 'http', 34343)
-        # client_experiment(region, host, carrier, browser, 'http', 34343)
-        # client_experiment(region, host, carrier, browser, 'http', 34343)
-        # client_experiment(region, host, carrier, browser, 'http', 34343)
+        for i in range(FLAGS.num_site_trials):
+          client_experiment(region, host, carrier, browser, 'http', 80, 0==i,
+                            pipelining = http_pipelining)
+        for i in range(FLAGS.num_site_trials):
+          client_experiment(region, host, carrier, browser, 'http', 443, 0==i,
+                            pipelining = http_pipelining)
+        for i in range(FLAGS.num_site_trials):
+          client_experiment(region, host, carrier, browser, 'http', 34343, 0==i,
+                            pipelining = http_pipelining)
 
   display.stop()
 

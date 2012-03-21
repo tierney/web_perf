@@ -11,6 +11,7 @@ FLAGS = gflags.FLAGS
 
 gflags.DEFINE_boolean('debug', False, 'produces debugging output')
 gflags.DEFINE_string('browser', None, 'Browser to use..')
+gflags.DEFINE_integer('pipelining', 0, 'enable pipelining (implicit) and num requests')
 gflags.DEFINE_string(
   'domain', None, 'Domain to HTTP GET (should include protocol; e.g., http://')
 
@@ -18,17 +19,30 @@ gflags.MarkFlagAsRequired('browser')
 gflags.MarkFlagAsRequired('domain')
 
 class BrowserRun(object):
-  def __init__(self, browser, domain):
+  def __init__(self, browser, domain, pipelining):
     self.browser = browser
     self.domain = domain
+    self.pipelining = pipelining
 
   def _browser(self):
     browser_driver = None
     try:
       if 'chrome' == self.browser:
-        browser_driver = webdriver.Chrome()
+        options = webdriver.ChromeOptions()
+        if self.pipelining > 0:
+          options.add_argument('--enable-http-pipelining')
+        browser_driver = webdriver.Chrome(chrome_options = options)
+
       elif 'firefox' == self.browser:
-        browser_driver = webdriver.Firefox()
+        profile = webdriver.FirefoxProfile()
+        if self.pipelining > 0:
+          profile.set_preference("network.http.pipelining", True)
+          profile.set_preference(
+            "network.http.pipelining.maxrequest", self.pipelining)
+          profile.set_preference("network.http.pipelining.ssl", True)
+          profile.update_preferences()
+        browser_driver = webdriver.Firefox(firefox_profile = profile)
+
       elif 'android' == self.browser:
         # Restart the android selenium app before trying to call into it.
         subprocess.call(
@@ -67,7 +81,7 @@ def main(argv):
   if FLAGS.debug:
     logging.info('non-flag arguments:', argv)
 
-  t = BrowserRun(FLAGS.browser, FLAGS.domain)
+  t = BrowserRun(FLAGS.browser, FLAGS.domain, FLAGS.pipelining)
   t.start()
 
 if __name__=='__main__':

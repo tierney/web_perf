@@ -36,6 +36,7 @@ REGIONS_LIST = [
   'ap-southeast-1',
   ]
 
+gflags.DEFINE_integer('num_instances', None, 'number of instances', short_name = 'n')
 gflags.DEFINE_multistring('regions', REGIONS_LIST, 'regions to spawn experiment to',
                           short_name = 'r')
 gflags.DEFINE_string('keypair', None, 'keypair to use', short_name = 'k')
@@ -43,6 +44,7 @@ gflags.DEFINE_integer('rpcport', 34344, 'RPC port for remote machines to listen 
                       short_name = 'p')
 gflags.DEFINE_string('wwwpath', '~/www', 'path to web directory', short_name = 'w')
 
+gflags.MarkFlagAsRequired('num_instances')
 gflags.MarkFlagAsRequired('keypair')
 
 def get_ip_address(ifname):
@@ -91,9 +93,10 @@ class SecurityGroups(object):
 
 
 class Ec2Controller(threading.Thread):
-  def __init__(self, region):
+  def __init__(self, region, num_instances):
     threading.Thread.__init__(self)
     self.region = region
+    self.num_instances = num_instances
     self.instances = None
     self.connection = None
     self.state = None
@@ -168,8 +171,8 @@ chmod +x run_ec2_rpc_server.py
 
     # TODO(tierney): Let's have multiple instances on the reservation: one for
     # each browser to test.
-    reservation = image.run(min_count=2,
-                            max_count=2,
+    reservation = image.run(min_count=self.num_instances,
+                            max_count=self.num_instances,
                             key_name=FLAGS.keypair,
                             user_data = user_data,
                             security_groups=security_groups,
@@ -253,9 +256,8 @@ def main(argv):
       os.path.expanduser(os.path.join(FLAGS.wwwpath, 'public_dns_names.txt'))
   with open(public_dns_path, 'w') as fh: pass
 
-
   # Fire up controllers and the EC2 instances..
-  controllers = [Ec2Controller(region) for region in regions]
+  controllers = [Ec2Controller(region, FLAGS.num_instances) for region in regions]
   for controller in controllers:
     controller.daemon = True
 
