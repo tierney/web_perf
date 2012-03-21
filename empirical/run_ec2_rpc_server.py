@@ -45,7 +45,7 @@ class Tcpdump:
         (timestamp, region, carrier, browser, pipelining, port)
     logging.info('Starting tcpdump %s.' % filename)
     tcpdump = subprocess.Popen(
-      shlex.split('tcpdump -i %s -w %s' % (FLAGS.interface, filename))
+      shlex.split('tcpdump -i %s -w %s' % (FLAGS.interface, filename)))
     return tcpdump.pid
 
   def stop(self, timestamp, region, carrier, browser, pipelining, port, pid,
