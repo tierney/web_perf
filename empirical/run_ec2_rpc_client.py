@@ -129,7 +129,7 @@ def client_experiment(region, host, carrier, browser, protocol, port,
     tr_file = '%s_%s_%s_%s_%s_%s.client.traceroute' % \
         (timestamp, region, carrier, browser, port, host)
     with open(tr_file, 'w') as tr_fh:
-      subprocess.Popen('traceroute %s' % (host),
+      subprocess.Popen('traceroute %s -m 50' % (host),
                        shell=True, stdout=tr_fh).wait()
 
   # Zip up local tcpdump.
@@ -199,10 +199,10 @@ def main(argv):
           client_experiment(region, host, carrier, browser, 'http', 80, str(0==i),
                             pipelining = http_pipelining)
         for i in range(FLAGS.num_site_trials):
-          client_experiment(region, host, carrier, browser, 'http', 443, str(0==i),
+          client_experiment(region, host, carrier, browser, 'https', 443, False,
                             pipelining = http_pipelining)
         for i in range(FLAGS.num_site_trials):
-          client_experiment(region, host, carrier, browser, 'http', 34343, str(0==i),
+          client_experiment(region, host, carrier, browser, 'http', 34343, False,
                             pipelining = http_pipelining)
 
   display.stop()

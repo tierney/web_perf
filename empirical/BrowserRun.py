@@ -28,21 +28,27 @@ class BrowserRun(object):
     browser_driver = None
     try:
       if 'chrome' == self.browser:
-        options = webdriver.ChromeOptions()
         if self.pipelining > 0:
+          options = webdriver.ChromeOptions()
           options.add_argument('--enable-http-pipelining')
+          options.add_argument('--disk-cache-size=0')
           options.add_argument('--ignore-certificate-errors')
-        browser_driver = webdriver.Chrome(chrome_options = options)
+          browser_driver = webdriver.Chrome(chrome_options = options)
+        else:
+          browser_driver = webdriver.Chrome()
 
       elif 'firefox' == self.browser:
-        profile = webdriver.FirefoxProfile()
         if self.pipelining > 0:
+          profile = webdriver.FirefoxProfile()
+          profile.set_preference("browser.cache.disk.enable", False)
           profile.set_preference("network.http.pipelining", True)
           profile.set_preference(
             "network.http.pipelining.maxrequest", self.pipelining)
           profile.set_preference("network.http.pipelining.ssl", True)
           profile.update_preferences()
-        browser_driver = webdriver.Firefox(firefox_profile = profile)
+          browser_driver = webdriver.Firefox(firefox_profile = profile)
+        else:
+          browser_driver = webdriver.Firefox()
 
       elif 'android' == self.browser:
         # Restart the android selenium app before trying to call into it.
