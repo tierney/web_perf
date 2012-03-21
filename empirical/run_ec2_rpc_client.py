@@ -21,6 +21,8 @@ FLAGS = gflags.FLAGS
 gflags.DEFINE_string('list_host', 'theseus.news.cs.nyu.edu', 'http host with list')
 gflags.DEFINE_string('list_path', '/public_dns_names.txt', 'http path to list')
 
+gflags.DEFINE_multistring('region_hosts', None, '<region>,<hosts> list',
+                          short_name = 'r')
 gflags.DEFINE_integer('num_site_trials', 1, 'number of trials per site',
                       short_name = 'n')
 gflags.DEFINE_integer('rpcport', 34344, 'RPC port to connect to',
@@ -123,6 +125,13 @@ def client_experiment(region, host, carrier, browser, protocol, port,
         subprocess.Popen('traceroute %s' % (proxy_ip),
                          shell=True, stdout=tr_fh).wait()
 
+    logging.info('Tracerouting %s.' % host)
+    tr_file = '%s_%s_%s_%s_%s_%s.client.traceroute' % \
+        (timestamp, region, carrier, browser, port, host)
+    with open(tr_file, 'w') as tr_fh:
+      subprocess.Popen('traceroute %s' % (host),
+                       shell=True, stdout=tr_fh).wait()
+
   # Zip up local tcpdump.
   subprocess.call(['bzip2', pcap_name])
 
@@ -146,10 +155,13 @@ def main(argv):
   display.start()
 
   # Get the regions,public_dns_names
-  ec2_region_hosts = [line.strip() for line in
-                      urllib2.urlopen('http://' +
-                                      FLAGS.list_host +
-                                      FLAGS.list_path).readlines()]
+  if not FLAGS.region_hosts:
+    ec2_region_hosts = [line.strip() for line in
+                        urllib2.urlopen('http://' +
+                                        FLAGS.list_host +
+                                        FLAGS.list_path).readlines()]
+  else:
+    ec2_region_hosts = FLAGS.region_hosts
 
   # Map a browser setting to a host.
   # e.g., ('browser', 'setting0', 'setting1',...) -> host
