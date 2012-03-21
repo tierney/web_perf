@@ -1,7 +1,7 @@
 require('ggplot2')
 
 PATH = '/scratch/data/ec2_017/'
-
+PATH = '/home/tierney/repos/web_perf/empirical/ec2_020/'
 plot_convos = function(filename) {
   FLOWTIME = '/home/tierney/repos/web_perf/analysis/flowtime.rb'
 
@@ -36,8 +36,8 @@ plot_convos = function(filename) {
 ##plot_convos('~/repos/web_perf/analysis/pipeline_chrome_00.pcap')
 
 
-plot_convos('~/repos/web_perf/analysis/pipeline_chrome_02.pcap')
-##for (filename in list.files(PATH, pattern='(tmobile|verizon).*.pcap$')) {
-##  file_path = paste(PATH, filename, sep='')
-##  plot_convos(file_path)
-##}
+## plot_convos('~/repos/web_perf/analysis/pipeline_chrome_02.pcap')
+for (filename in list.files(PATH, pattern='(tmobile|verizon).*.pcap$')) {
+ file_path = paste(PATH, filename, sep='')
+ plot_convos(file_path)
+}

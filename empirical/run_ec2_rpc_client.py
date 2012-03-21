@@ -174,6 +174,7 @@ def main(argv):
     ('chrome', 1),
     ]
 
+  completed_traceroutes = []
   ec2_region_browser_host = {}
   ec2_region_hosts_temp = {}
   for ec2_region_host in ec2_region_hosts:
@@ -195,15 +196,19 @@ def main(argv):
       for browser, http_pipelining in ec2_region_browser_host.get(region):
         host = ec2_region_browser_host.get(region).get((browser, http_pipelining))
 
+        do_traceroute = False
         for i in range(FLAGS.num_site_trials):
-          client_experiment(region, host, carrier, browser, 'http', 80, str(0==i),
-                            pipelining = http_pipelining)
+          if (carrier, host) not in completed_traceroutes:
+            completed_traceroutes.append((carrier, host))
+            do_traceroute = True
+          client_experiment(region, host, carrier, browser, 'http', 80,
+                            do_traceroute, pipelining = http_pipelining)
         for i in range(FLAGS.num_site_trials):
-          client_experiment(region, host, carrier, browser, 'https', 443, False,
-                            pipelining = http_pipelining)
+          client_experiment(region, host, carrier, browser, 'https', 443,
+                            do_traceroute, pipelining = http_pipelining)
         for i in range(FLAGS.num_site_trials):
-          client_experiment(region, host, carrier, browser, 'http', 34343, False,
-                            pipelining = http_pipelining)
+          client_experiment(region, host, carrier, browser, 'http', 34343,
+                            do_traceroute, pipelining = http_pipelining)
 
   display.stop()
 
