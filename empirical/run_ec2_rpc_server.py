@@ -20,6 +20,7 @@ from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 
 import gflags
 FLAGS = gflags.FLAGS
+gflags.DEFINE_string('interface', 'eth0', 'interface to bind', short_name = 'i')
 gflags.DEFINE_integer('port', None, 'port number for XMLRPCServer',
                       short_name = 'p')
 gflags.MarkFlagAsRequired('port')
@@ -43,7 +44,8 @@ class Tcpdump:
     filename = '%s_%s_%s_%s_%s_%s.server.pcap' % \
         (timestamp, region, carrier, browser, pipelining, port)
     logging.info('Starting tcpdump %s.' % filename)
-    tcpdump = subprocess.Popen(shlex.split('tcpdump -i eth0 -w %s' % filename))
+    tcpdump = subprocess.Popen(
+      shlex.split('tcpdump -i %s -w %s' % (FLAGS.interface, filename))
     return tcpdump.pid
 
   def stop(self, timestamp, region, carrier, browser, pipelining, port, pid,
@@ -60,7 +62,7 @@ class Tcpdump:
       'tshark -r %s -n -z conv,tcp | grep "<->"' % filename,
       shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     logging.info('Parsing IP addrs.')
-    local_ip = get_ip_address('eth0')
+    local_ip = get_ip_address(FLAGS.interface)
     ret = set()
     for line in tshark.stdout.readlines():
       output = line.strip().split()
@@ -72,6 +74,7 @@ class Tcpdump:
       if ip_b == local_ip and port_b == port:
         ret.add(ip_a)
 
+    # Perform traceroute to proxy IPs.
     if do_traceroute:
       logging.info('Tracerouting.')
       tr_files = []
@@ -86,7 +89,6 @@ class Tcpdump:
 
     logging.info('Zipping pcap.')
     subprocess.call(['bzip2', filename])
-
     logging.info('Returning list.')
     return list(ret)
 
@@ -102,7 +104,7 @@ def main(argv):
     sys.exit(1)
 
   # Create server
-  server = SimpleXMLRPCServer((get_ip_address('eth0'), FLAGS.port),
+  server = SimpleXMLRPCServer((get_ip_address(FLAGS.interface), FLAGS.port),
                               requestHandler=RequestHandler,
                               allow_none = True)
   server.register_introspection_functions()
