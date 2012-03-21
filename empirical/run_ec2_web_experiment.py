@@ -210,7 +210,7 @@ chmod +x run_ec2_rpc_server.py
       time.sleep(1)
 
     for instance in self.instances:
-      name = instance.name
+      name = instance.id
       dns_name = instance.public_dns_name
       instance.terminate()
       time_waited = 0

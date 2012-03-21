@@ -89,8 +89,7 @@ class Tcpdump:
         subprocess.call(['bzip2', tr_file])
 
     logging.info('Zipping pcap.')
-    subprocess.call(['bzip2', '%s_%s_%s_%s_%s.server.pcap' % \
-                       (timestamp, region, carrier, browser, port)])
+    subprocess.call(['bzip2', filename])
 
 
     logging.info('Returning list.')

@@ -113,11 +113,12 @@ def client_experiment(region, host, carrier, browser, protocol, port,
 
   if do_traceroute:
     for proxy_ip in proxy_ips:
+      logging.info('Tracerouting %s.' % proxy_ip)
       for i in range(3):
         tr_file = '%s_%s_%s_%s_%s_%s.%d.client.traceroute' % \
-            (timestamp, region, carrier, browser, port, ip_addr, i)
+            (timestamp, region, carrier, browser, port, proxy_ip, i)
         with open(tr_file, 'w') as tr_fh:
-          subprocess.Popen('traceroute %s' % (ip_addr, tr_file),
+          subprocess.Popen('traceroute %s' % (proxy_ip),
                            shell=True, stdout=tr_fh).wait()
 
   # Zip up local tcpdump.
