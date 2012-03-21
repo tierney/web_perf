@@ -2,7 +2,6 @@ require('ggplot2')
 
 PATH = '/scratch/data/ec2_017/'
 PATH = '/home/tierney/repos/web_perf/empirical/ec2_022/'
-
 plot_convos = function(filename) {
   FLOWTIME = '/home/tierney/repos/web_perf/analysis/flowtime.rb'
 
@@ -23,7 +22,6 @@ plot_convos = function(filename) {
   show(p)
 }
 
-
 ## plot_convos('/scratch/data/ec2_017/2012-03-15-23-07-04_1cafda6b-2a66-464a-a563-86b4da6937cc_eu-west-1_verizon_firefox_80.client.pcap')
 ## plot_convos('/scratch/data/ec2_017/2012-03-15-21-45-42_92d35f4b-c14a-41f3-a15c-3c0df9c74d9b_us-east-1_wired_chrome_80.server.pcap')
 ## plot_convos('/scratch/data/ec2_017/2012-03-15-21-54-58_3c7abf89-6a84-4895-a330-aa2752da11b2_ap-southeast-1_wired_chrome_80.client.pcap')
@@ -37,8 +35,7 @@ plot_convos = function(filename) {
 ##plot_convos('~/repos/web_perf/analysis/pipeline_chrome_00.pcap')
 
 
-##plot_convos('~/repos/web_perf/analysis/pipeline_chrome_02.pcap')
-##for (filename in list.files(PATH, pattern='(tmobile|verizon).*.pcap$')) {
-##  file_path = paste(PATH, filename, sep='')
-##  plot_convos(file_path)
-##}
+for (filename in list.files(PATH, pattern='(tmobile|verizon).*.pcap$')) {
+ file_path = paste(PATH, filename, sep='')
+ plot_convos(file_path)
+}
