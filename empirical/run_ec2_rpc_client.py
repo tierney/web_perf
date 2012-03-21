@@ -178,16 +178,16 @@ def main(argv):
     prepare_interfaces(carrier)
     for region in ec2_region_browser_host:
       for browser, http_pipelining in ec2_region_browser_host.get(region):
-        host = ec2_region_browser_host.get(region).get(browser)
+        host = ec2_region_browser_host.get(region).get((browser, http_pipelining))
 
         for i in range(FLAGS.num_site_trials):
-          client_experiment(region, host, carrier, browser, 'http', 80, 0==i,
+          client_experiment(region, host, carrier, browser, 'http', 80, str(0==i),
                             pipelining = http_pipelining)
         for i in range(FLAGS.num_site_trials):
-          client_experiment(region, host, carrier, browser, 'http', 443, 0==i,
+          client_experiment(region, host, carrier, browser, 'http', 443, str(0==i),
                             pipelining = http_pipelining)
         for i in range(FLAGS.num_site_trials):
-          client_experiment(region, host, carrier, browser, 'http', 34343, 0==i,
+          client_experiment(region, host, carrier, browser, 'http', 34343, str(0==i),
                             pipelining = http_pipelining)
 
   display.stop()

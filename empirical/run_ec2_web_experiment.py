@@ -299,7 +299,7 @@ def main(argv):
       break
     time.sleep(2)
 
-  sys.stdout.write('Waiting on: (None).\n')
+  sys.stdout.write('Waiting on: (None).          \n')
   sys.stdout.flush()
 
   # We'll wait for the proper exit command.

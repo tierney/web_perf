@@ -82,7 +82,7 @@ class Tcpdump:
               (timestamp, region, carrier, browser, port, ip_addr, i)
           tr_files.append(tr_file)
           with open(tr_file, 'w') as tr_fh:
-            subprocess.Popen('traceroute %s' % (ip_addr, tr_file),
+            subprocess.Popen('traceroute %s' % (ip_addr),
                              shell=True, stdout=tr_fh).wait()
       logging.info('Zipping traceroutes.')
       for tr_file in tr_files:
