@@ -31,6 +31,7 @@ class BrowserRun(object):
         options = webdriver.ChromeOptions()
         if self.pipelining > 0:
           options.add_argument('--enable-http-pipelining')
+          options.add_argument('--ignore-certificate-errors')
         browser_driver = webdriver.Chrome(chrome_options = options)
 
       elif 'firefox' == self.browser:

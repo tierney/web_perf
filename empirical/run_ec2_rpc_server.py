@@ -84,9 +84,6 @@ class Tcpdump:
           with open(tr_file, 'w') as tr_fh:
             subprocess.Popen('traceroute %s' % (ip_addr),
                              shell=True, stdout=tr_fh).wait()
-      logging.info('Zipping traceroutes.')
-      for tr_file in tr_files:
-        subprocess.call(['bzip2', tr_file])
 
     logging.info('Zipping pcap.')
     subprocess.call(['bzip2', filename])

@@ -82,8 +82,8 @@ def client_experiment(region, host, carrier, browser, protocol, port,
   logging.info('Started on server with PID %d.' % pid)
 
   # Start our tcpdump
-  pcap_name = '%s_%s_%s_%s_%s.client.pcap' % \
-      (timestamp, region, carrier, browser, port)
+  pcap_name = '%s_%s_%s_%s_%s_%s.client.pcap' % \
+      (timestamp, region, carrier, browser, pipelining, port)
   tcpdump = subprocess.Popen(
     shlex.split('tcpdump -i %s -w %s' % (interface, pcap_name)),
     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -91,8 +91,10 @@ def client_experiment(region, host, carrier, browser, protocol, port,
   # Start browser
   # TODO(tierney): Currently only supports chrome and firefox.
   to_kill = None
-  if browser == 'chrome': to_kill = 'chromedriver'
-  elif browser == 'firefox': to_kill = '/usr/lib/firefox-10.0.2/firefox'
+  if browser == 'chrome':
+    to_kill = 'chromedriver'
+  elif browser == 'firefox':
+    to_kill = '/usr/lib/firefox-10.0.2/firefox'
 
   if port == '80' and not port80explicit:
     browser_command = './BrowserRun.py --browser %s --domain %s --pipelining %d' % \

@@ -32,11 +32,11 @@ def main(argv):
 
     subprocess.call(shlex.split(
         'scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ' \
-          'ubuntu@%s:/*.server.traceroute.bz2 .' % (host)))
+          'ubuntu@%s:/*.server.traceroute .' % (host)))
 
     subprocess.call(shlex.split(
         'ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ' \
-          'ubuntu@%s sudo rm -f /*.server.pcap.bz2 /*.server.traceroute.bz2' \
+          'ubuntu@%s sudo rm -f /*.server.pcap.bz2 /*.server.traceroute' \
           % (host)))
 
 
