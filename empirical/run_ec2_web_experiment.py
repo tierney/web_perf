@@ -304,8 +304,8 @@ def main(argv):
 
   # We'll wait for the proper exit command.
   while True:
-    command = raw_input('Ready. (Type quit to terminate.)\n')
-    if command == 'quit':
+    command = raw_input('Ready. (Type data_collected to terminate.)\n')
+    if command == 'data_collected':
       break
 
   # Clean up everything.
