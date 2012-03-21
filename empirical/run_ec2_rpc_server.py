@@ -54,11 +54,11 @@ class Tcpdump:
     filename = '%s_%s_%s_%s_%s_%s.server.pcap' % \
         (timestamp, region, carrier, browser, pipelining, port)
 
+    # Figure out the proxy IP addrs.
     logging.info('Finding conversations.')
     tshark = subprocess.Popen(
       'tshark -r %s -n -z conv,tcp | grep "<->"' % filename,
       shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
     logging.info('Parsing IP addrs.')
     local_ip = get_ip_address('eth0')
     ret = set()
@@ -76,18 +76,16 @@ class Tcpdump:
       logging.info('Tracerouting.')
       tr_files = []
       for ip_addr in ret:
-        for i in range(3):
-          logging.info('Traceroute %d: %s.' % (i, ip_addr))
-          tr_file = '%s_%s_%s_%s_%s_%s.%d.server.traceroute' % \
-              (timestamp, region, carrier, browser, port, ip_addr, i)
-          tr_files.append(tr_file)
-          with open(tr_file, 'w') as tr_fh:
-            subprocess.Popen('traceroute %s' % (ip_addr),
-                             shell=True, stdout=tr_fh).wait()
+        logging.info('Traceroute: %s.' % (ip_addr))
+        tr_file = '%s_%s_%s_%s_%s_%s.server.traceroute' % \
+            (timestamp, region, carrier, browser, port, ip_addr)
+        tr_files.append(tr_file)
+        with open(tr_file, 'w') as tr_fh:
+          subprocess.Popen('traceroute %s' % (ip_addr),
+                           shell=True, stdout=tr_fh).wait()
 
     logging.info('Zipping pcap.')
     subprocess.call(['bzip2', filename])
-
 
     logging.info('Returning list.')
     return list(ret)
