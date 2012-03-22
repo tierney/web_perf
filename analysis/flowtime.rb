@@ -23,7 +23,8 @@ derived_fields = ['srcport', 'dstport', 'server_ip', 'server_port', 'direction',
 SERVER_PORTS = [80, 443, 34343]
 
 if is_client
-  first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields -R "dns.qry.name contains amazon"`.to_i
+  #first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields -R "dns.qry.name contains amazon"`.to_i
+  first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields -R "dns.qry.name contains cnn.com"`.to_i
 else
   server_condition = 'tcp.dstport == ' + SERVER_PORTS.join(' or tcp.dstport == ')
   first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields -R "#{server_condition}"`.to_i

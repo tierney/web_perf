@@ -1,4 +1,5 @@
 require('ggplot2')
+library(gridExtra)
 
 PATH = '/scratch/data/ec2_017/'
 PATH = '/home/tierney/repos/web_perf/empirical/ec2_022/'
@@ -15,11 +16,11 @@ plot_convos = function(filename) {
     geom_point(aes(size = frame.len),
                position=position_jitter(width=0, height=0.2)) +
     scale_shape() +
-    scale_x_continuous() +
+    scale_x_continuous(breaks=0:8) +
     scale_color_hue()
   out_svg = paste(filename, 'svg', sep='.')
   ggsave(out_svg)
-  show(p)
+  return(p)
 }
 
 ## plot_convos('/scratch/data/ec2_017/2012-03-15-23-07-04_1cafda6b-2a66-464a-a563-86b4da6937cc_eu-west-1_verizon_firefox_80.client.pcap')
@@ -32,10 +33,13 @@ plot_convos = function(filename) {
 ##plot_convos('~/repos/web_perf/analysis/pipeline_unk_8_ff_01.pcap')
 ##plot_convos('~/repos/web_perf/analysis/pipeline_both_16_ff_00.pcap')
 ## plot_convos('~/repos/web_perf/analysis/pipeline_both_16_ff_01.pcap')
-##plot_convos('~/repos/web_perf/analysis/pipeline_chrome_00.pcap')
 
+p1 = plot_convos('/tmp/test.pcap')
+p2 = plot_convos('/tmp/tmobile.ff.pcap')
 
-for (filename in list.files(PATH, pattern='(tmobile|verizon).*.pcap$')) {
- file_path = paste(PATH, filename, sep='')
- plot_convos(file_path)
-}
+show(grid.arrange(p1, p2))
+
+## for (filename in list.files(PATH, pattern='(tmobile|verizon).*.pcap$')) {
+##  file_path = paste(PATH, filename, sep='')
+##  plot_convos(file_path)
+## }
