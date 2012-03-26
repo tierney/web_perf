@@ -160,7 +160,8 @@ def main(argv):
     print '%s:%s -> (%s:%s)' % (convo[0], convo[1], convo[2], convo[3])
     client_rtts = [float(val) for val in client_convos_rtt.get(convo)]
     if client_rtts:
-      print 'client rtt min/avg/max = %.3f/%.3f/%.3f ms' % (1000 * min(client_rtts), 1000 * average(client_rtts), 1000 * max(client_rtts))
+      print 'client rtt min/avg/max = %.3f/%.3f/%.3f ms' % \
+          (1000 * min(client_rtts), 1000 * average(client_rtts), 1000 * max(client_rtts))
     print
 
   for convo in client_convos_file_time:
@@ -178,9 +179,11 @@ def main(argv):
            possible_match[2], possible_match[3])
       match_dict = {k:v for k,v in server_convos_file_time.get(possible_match)}
       client_rtts = [float(val) for val in client_convos_rtt.get(convo)]
-      print 'client rtt min/avg/max = %.3f/%.3f/%.3f ms' % (1000 * min(client_rtts), 1000 * average(client_rtts), 1000 * max(client_rtts))
+      print 'client rtt min/avg/max = %.3f/%.3f/%.3f ms' % \
+          (1000 * min(client_rtts), 1000 * average(client_rtts), 1000 * max(client_rtts))
       server_rtts = [float(val) for val in server_convos_rtt.get(possible_match)]
-      print 'server rtt min/avg/max = %.3f/%.3f/%.3f ms' % (1000 * min(server_rtts), 1000 * average(server_rtts), 1000 * max(server_rtts))
+      print 'server rtt min/avg/max = %.3f/%.3f/%.3f ms' % \
+          (1000 * min(server_rtts), 1000 * average(server_rtts), 1000 * max(server_rtts))
 
       for match in intersection:
         print '  %-30s %.6f %.6f' % \

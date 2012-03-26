@@ -2,7 +2,7 @@
 
 $filename = ARGV[ARGV.length-1].to_s
 is_server = $filename.include? 'server'
-is_client = true
+is_client = !is_server # true
 
 STDERR.puts $filename
 unless File.exist?($filename)
@@ -32,17 +32,17 @@ SERVER_PORTS = [80, 443, 34343]
 
 if is_client
   domain = File.basename($filename).split('_')[2]
+  domain = 'amazonaws'
   STDERR.puts 'tshark -r ' + $filename + ' -c 1 -e frame.number -T fields ' +
     '-R "dns.qry.name contains www.' + domain + '"'
-  first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields \
--R "dns.qry.name contains www.#{domain}"`.to_i
+  first_packet = 0 # `tshark -r #{$filename} -e frame.number -T fields -R "dns.qry.name contains www.#{domain}" | head -n 1`.to_i
   if 0 == first_packet
-    first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields -R "dns.qry.name contains #{domain}"`.to_i
+    first_packet = `tshark -r #{$filename} -e frame.number -T fields -R "dns.qry.name contains #{domain}" | head -n 1`.to_i
   end
   STDERR.puts 'First packet:' + first_packet.to_s
 else
   server_condition = 'tcp.dstport == ' + SERVER_PORTS.join(' or tcp.dstport == ')
-  first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields -R "#{server_condition}"`.to_i
+  first_packet = `tshark -r #{$filename} -e frame.number -T fields -R "#{server_condition}" | head -n 1`.to_i
 end
 
 tshark_query = '-e ' + tshark_fields.join(' -e ')

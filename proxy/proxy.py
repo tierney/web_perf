@@ -11,9 +11,14 @@ import urllib
 
 from proactive_cache import ProactiveCache
 
+import gflags
+FLAGS = gflags.FLAGS
+gflags.DEFINE_string('host', '216.165.108.71', 'ip address of host', short_name = 'h')
+gflags.DEFINE_integer('port', 34343, 'port to listen on', short_name = 'p')
+
+
 RESOURCE_RE = re.compile(r'''(?:href|src)=['"]([^'"]+\.(?:pdf|jpeg|jpg|png|css|js|xml|gif))['"]''')
 VERSION = 'Python Proxy/tierney'
-
 
 def extract_resources(document):
   return set(RESOURCE_RE.findall(document))
@@ -23,6 +28,7 @@ class ProxyHandler (BaseHTTPRequestHandler):
   protocol_version = 'HTTP/1.1'
   proactive_cache = ProactiveCache()
   proactive_cache.start()
+  timeout = 60
 
   def do_GET(self):
     (scm, netloc, path, params, query, fragment) = urlparse.urlparse(
@@ -34,17 +40,17 @@ class ProxyHandler (BaseHTTPRequestHandler):
     url = urlparse.urlunparse((scm, netloc, path, params, query, fragment))
     blob = self.proactive_cache.get(url)
     if not blob:
-      self.log_message('MISS on %s.' % urllib.unquote(url)) 
+      self.log_message('MISS on %s.' % urllib.unquote(url))
       connection = urllib2.urlopen(url)
       blob = connection.read()
     else:
       self.log_message('HIT on %s.' % urllib.unquote(url))
-      
+
     extracted = extract_resources(blob)
     if extracted:
       for extracted_path in extracted:
         self.proactive_cache.put(netloc, path, extracted_path)
-      
+
 #    headers = connection.info()
 #    connection.close()
     self.send_response(200)
@@ -69,7 +75,7 @@ class ProxyHandler (BaseHTTPRequestHandler):
     self.send_header('Proxy-agent', VERSION)
     self.client_buffer = ''
     self._read_write()
-    
+
   def _read_write(self):
     time_out_max = self.timeout/3
     socs = [self.client, self.target]
@@ -100,10 +106,16 @@ class ProxyHandler (BaseHTTPRequestHandler):
 class ThreadingHTTPServer (SocketServer.ThreadingMixIn,
                            BaseHTTPServer.HTTPServer): pass
 
-if __name__ == '__main__':
-  from sys import argv
-  host = '216.165.108.71'
-  port = 34343
-  t = ThreadingHTTPServer((host, port), ProxyHandler)
-  print "Listening at %s:%d" % (host, port)
+def main(argv):
+  try:
+    argv = FLAGS(argv)  # parse flags
+  except gflags.FlagsError, e:
+    logging.error('%s\nUsage: %s ARGS\n%s' % (e, sys.argv[0], FLAGS))
+    sys.exit(1)
+
+  t = ThreadingHTTPServer((FLAGS.host, FLAGS.port), ProxyHandler)
+  print "Listening at %s:%d" % (FLAGS.host, FLAGS.port)
   t.serve_forever()
+
+if __name__ == '__main__':
+  main(sys.argv)

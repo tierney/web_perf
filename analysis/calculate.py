@@ -49,7 +49,6 @@ class TsharkFields(threading.Thread):
       raise
 
 
-
 def driver(field, shark_filter, pcap_queue, outfilename):
   values_queue = Queue.Queue()
   for i in range(NUM_THREADS):
