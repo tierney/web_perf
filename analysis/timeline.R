@@ -1,8 +1,9 @@
+require('hash')
 require('ggplot2')
 library(gridExtra)
 
-PATH = '/scratch/data/ec2_017/'
-PATH = '/home/tierney/repos/web_perf/empirical/ec2_022/'
+PATH = '/home/tierney/repos/web_perf/empirical/2012_03_23_18_06_19/'
+
 plot_convos = function(filename) {
   FLOWTIME = '/home/tierney/repos/web_perf/analysis/flowtime.rb'
 
@@ -16,30 +17,50 @@ plot_convos = function(filename) {
     geom_point(aes(size = frame.len),
                position=position_jitter(width=0, height=0.2)) +
     scale_shape() +
-    scale_x_continuous(breaks=0:8) +
-    scale_color_hue()
-  out_svg = paste(filename, 'svg', sep='.')
-  ggsave(out_svg)
+    scale_x_continuous() +
+    scale_color_hue() +
+    opts(title = basename(filename))
+  #out_svg = paste(filename, 'svg', sep='.')
+  #ggsave(out_svg)
   return(p)
 }
 
-## plot_convos('/scratch/data/ec2_017/2012-03-15-23-07-04_1cafda6b-2a66-464a-a563-86b4da6937cc_eu-west-1_verizon_firefox_80.client.pcap')
-## plot_convos('/scratch/data/ec2_017/2012-03-15-21-45-42_92d35f4b-c14a-41f3-a15c-3c0df9c74d9b_us-east-1_wired_chrome_80.server.pcap')
-## plot_convos('/scratch/data/ec2_017/2012-03-15-21-54-58_3c7abf89-6a84-4895-a330-aa2752da11b2_ap-southeast-1_wired_chrome_80.client.pcap')
-##plot_convos('test.pcap')
-##plot_convos('~/repos/web_perf/analysis/pipeline_on_8_ff_01.pcap')
-##plot_convos('~/repos/web_perf/analysis/pipeline_off_8_ff_01.pcap')
-##plot_convos('~/repos/web_perf/analysis/pipeline_unk_8_ff_00.pcap')
-##plot_convos('~/repos/web_perf/analysis/pipeline_unk_8_ff_01.pcap')
-##plot_convos('~/repos/web_perf/analysis/pipeline_both_16_ff_00.pcap')
-## plot_convos('~/repos/web_perf/analysis/pipeline_both_16_ff_01.pcap')
+## p1 = plot_convos('/tmp/test.pcap')
+## p2 = plot_convos('/tmp/tmobile.ff.pcap')
 
-p1 = plot_convos('/tmp/test.pcap')
-p2 = plot_convos('/tmp/tmobile.ff.pcap')
+## show(grid.arrange(p1, p2))
 
-show(grid.arrange(p1, p2))
-
-## for (filename in list.files(PATH, pattern='(tmobile|verizon).*.pcap$')) {
+## for (filename in list.files(PATH, pattern='(firefox|chrome).*.pcap$')) {
 ##  file_path = paste(PATH, filename, sep='')
 ##  plot_convos(file_path)
 ## }
+
+h = hash()
+for (filename in list.files(PATH, pattern='tmob(hspa|reg)_(firefox|chrome).*.pcap$')) {
+  fn = unlist(strsplit(toString(filename), '(_)'))
+  domain = paste(fn[2], fn[3], sep='_')
+  if (!has.key(domain, h)) {
+    h[[domain]] = list()
+  }
+  h[[domain]] = c(h[[domain]], c=filename)
+}
+
+for (key in keys(h)) {
+  print(key)
+  if (length(h[[key]]) < 2) {
+    next
+  }
+  print(h[[key]][1])
+  path1 = paste(PATH, h[[key]][1], sep='')
+  path2 = paste(PATH, h[[key]][2], sep='')
+  p1 = plot_convos(path1)
+  p2 = plot_convos(path2)
+
+  newfile = paste(PATH, key, sep='')
+  outsvg = paste(newfile, 'svg', sep='.')
+
+  svg(file=outsvg)
+  cp = grid.arrange(p1, p2)
+  dev.off()
+  # ggsave(outsvg, cp)
+}

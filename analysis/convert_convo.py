@@ -175,6 +175,7 @@ class ConversationConverter(object):
         output += '%s\t%s\t' % (convo_name, tcp_line.timestamp)
         # print convo_name, tcp_line.timestamp,
         continue
+
       # SYNACK
       if SYN_ACK:
         output += '%s\t%s\n' % (tcp_line.timestamp, 'SYNACK')

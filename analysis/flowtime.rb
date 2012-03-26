@@ -2,8 +2,9 @@
 
 $filename = ARGV[ARGV.length-1].to_s
 is_server = $filename.include? 'server'
-is_client = !is_server
+is_client = true
 
+STDERR.puts $filename
 unless File.exist?($filename)
   puts "File: #{$filename} does not exist."
   exit(0)
@@ -17,21 +18,36 @@ tshark_fields = [ 'frame.time_relative',
                   'ip.dst',
                   'tcp.dstport',
                   'udp.dstport',
-                  'frame.len']
-derived_fields = ['srcport', 'dstport', 'server_ip', 'server_port', 'direction', 'stream_id']
+                  'frame.len',
+                  'tcp.flags.syn',
+                  'tcp.flags.ack',
+                  'http.request.full_uri',
+                  'http.response.code',
+                ]
+
+derived_fields = ['srcport', 'dstport', 'server_ip', 'server_port', 'direction',
+                  'stream_id', ]
 
 SERVER_PORTS = [80, 443, 34343]
 
 if is_client
-  #first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields -R "dns.qry.name contains amazon"`.to_i
-  first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields -R "dns.qry.name contains cnn.com"`.to_i
+  domain = File.basename($filename).split('_')[2]
+  STDERR.puts 'tshark -r ' + $filename + ' -c 1 -e frame.number -T fields ' +
+    '-R "dns.qry.name contains www.' + domain + '"'
+  first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields \
+-R "dns.qry.name contains www.#{domain}"`.to_i
+  if 0 == first_packet
+    first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields -R "dns.qry.name contains #{domain}"`.to_i
+  end
+  STDERR.puts 'First packet:' + first_packet.to_s
 else
   server_condition = 'tcp.dstport == ' + SERVER_PORTS.join(' or tcp.dstport == ')
   first_packet = `tshark -r #{$filename} -c 1 -e frame.number -T fields -R "#{server_condition}"`.to_i
 end
 
 tshark_query = '-e ' + tshark_fields.join(' -e ')
-tshark_output = `tshark -n #{tshark_query} -T fields -E separator=, -r #{$filename} -R "not dns.qry.name contains google and not arp and frame.number >= #{first_packet}"`
+## tshark_output = `tshark -n #{tshark_query} -T fields -E separator=, -r #{$filename} -R "not dns.qry.name contains google and not arp and frame.number >= #{first_packet}"`
+tshark_output = `tshark -n #{tshark_query} -T fields -E separator=, -r #{$filename} -R "not arp and frame.number >= #{first_packet}"`
 
 STDERR.puts "Parsing tshark output..."
 STDOUT.puts tshark_fields.join(', ') + ', ' + derived_fields.join(', ')
