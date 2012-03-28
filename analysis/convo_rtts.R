@@ -11,7 +11,8 @@ increment <- function(x) {
 }
 
 data = read.csv('~/data.log', header=FALSE, sep=',')
-print(data)
+p = qplot(data=data, x=V2, y=V1) + geom_boxplot() + opts(axis.text.x=theme_text(angle=-90, hjust=0))
+show(p)
 
 ## for (line in lines) {
 ##   sline = unsplit(strsplit(line,','))
