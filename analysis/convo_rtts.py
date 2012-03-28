@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 import threading
-
+import Queue
 from numpy import std,var,median,mean
 import gflags
 
@@ -33,14 +33,17 @@ def listdir_match(directory, pattern):
   return matching_files
 
 
-class StatsPrinter(object):
-  def __init__(self, data):
+class DataPrinter(object):
+  def __init__(self, data, tag):
     self.data = data
+    self.tag = tag
 
   def __repr__(self):
-    return 'min/median/mean/max/std/var = %f/%f/%f/%f/%f/%f' \
-        % (min(self.data), median(self.data), mean(self.data),
-           max(self.data), std(self.data), var(self.data))
+    ret = ''
+    for datum in self.data:
+      ret += '%s,%s\n' % (str(datum), self.tag)
+    return ret
+
 
 class ConvoStatistics(object):
   def __init__(self, syn_ack_rtt, fin_ack_rtt, application_rtts):
@@ -141,25 +144,10 @@ class SocketConvo(object):
     cs = ConvoStatistics(syn_ack_rtt, fin_ack_rtt, application_rtts)
     return cs
 
-
-def main(argv):
-  try:
-    argv = FLAGS(argv)  # parse flags
-  except gflags.FlagsError, e:
-    logging.error('%s\nUsage: %s ARGS\n%s' % (e, sys.argv[0], FLAGS))
-    sys.exit(1)
-
-  data_dir = os.path.abspath(FLAGS.datadir)
-  filenames = listdir_match(data_dir, 'tmob(reg|hspa)_(chrome|firefox).*pcap$')
-
-
-  for filename in filenames[:5]:
-    pass
-
 class StatRunner(threading.Thread):
   def __init__(self, queue):
+    threading.Thread.__init__(self)
     self.queue = queue
-    threading.__init__(self)
 
   def run(self):
     while True:
@@ -168,7 +156,6 @@ class StatRunner(threading.Thread):
       except Queue.Empty:
         break
 
-      print filename
       syn_ack_rtts = []
       fin_ack_rtts = []
       application_rtts = {}
@@ -196,22 +183,43 @@ class StatRunner(threading.Thread):
             application_rtts[app] = []
           application_rtts[app] += rtt_stat.application_rtts.get(app)
 
-      print 'SYN,', ','.join([str(i) for i in syn_ack_rtts])
-      print 'FIN,', ','.join([str(i) for i in fin_ack_rtts])
+      print DataPrinter(syn_ack_rtts, 'SYN')
+      print DataPrinter(fin_ack_rtts, 'FIN')
       for app in application_rtts:
-        print ','.join([app] + [str(duration) for (length, duration) in
-                                application_rtts.get(app)])
-        # print app, StatsPrinter([duration for (length, duration) in
+        print DataPrinter([str(duration) for (length, duration) in
+                           application_rtts.get(app)], app)
+
+      # for app in application_rtts:
+      #   print ','.join([app] + [str(duration) for (length, duration) in
+      #                           application_rtts.get(app)])
+        # print app, DataPrinter([duration for (length, duration) in
         #                          application_rtts.get(app)])
 
         # if app != 'image/jpeg':
         #   continue
 
-        # # StatsPrinter(application_rtts.get(app))
+        # # DataPrinter(application_rtts.get(app))
         # for (length, duration) in application_rtts.get(app):
         #   print '%d,%f' % (length, duration)
         # print
-      print
+
+
+
+def main(argv):
+  try:
+    argv = FLAGS(argv)  # parse flags
+  except gflags.FlagsError, e:
+    logging.error('%s\nUsage: %s ARGS\n%s' % (e, sys.argv[0], FLAGS))
+    sys.exit(1)
+
+  data_dir = os.path.abspath(FLAGS.datadir)
+  filenames = listdir_match(data_dir, 'tmob(reg|hspa)_(chrome|firefox).*pcap$')
+
+  queue = Queue.Queue()
+  for filename in filenames[:5]:
+    queue.put(filename)
+  t = StatRunner(queue)
+  t.start()
 
 if __name__=='__main__':
   main(sys.argv)
