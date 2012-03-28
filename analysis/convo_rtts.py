@@ -5,6 +5,7 @@ import logging
 import os
 import subprocess
 import sys
+import threading
 
 from numpy import std,var,median,mean
 import gflags
@@ -151,50 +152,66 @@ def main(argv):
   data_dir = os.path.abspath(FLAGS.datadir)
   filenames = listdir_match(data_dir, 'tmob(reg|hspa)_(chrome|firefox).*pcap$')
 
+
   for filename in filenames[:5]:
-    print
-    syn_ack_rtts = []
-    fin_ack_rtts = []
-    application_rtts = {}
+    pass
 
-    local_ip = list(set(sorted(Tshark(filename, ['ip.src'],
-                                      ['tcp.flags.syn == 1',
-                                       'tcp.flags.ack == 0']).lines())))
+class StatRunner(threading.Thread):
+  def __init__(self, queue):
+    self.queue = queue
+    threading.__init__(self)
 
-    fields = ['ip.src', 'tcp.srcport', 'ip.dst', 'tcp.dstport',]
-    constraints = ['tcp.flags.syn == 1', 'tcp.flags.ack == 0',]
+  def run(self):
+    while True:
+      try:
+        filename = self.queue.get()
+      except Queue.Empty:
+        break
 
-    tcp_convos = list(set(sorted(Tshark(filename, fields, constraints).lines())))
-    rtt_stats = []
-    for line in tcp_convos:
-      convo = SocketConvo(filename, *line.strip().split(','))
-      rtt_stats.append(convo.rtt_stats())
+      print filename
+      syn_ack_rtts = []
+      fin_ack_rtts = []
+      application_rtts = {}
 
-    syn_ack_rtts = [rtt_stat.syn_ack_rtt for rtt_stat in rtt_stats
-                    if rtt_stat.syn_ack_rtt]
-    fin_ack_rtts = [rtt_stat.fin_ack_rtt for rtt_stat in rtt_stats
-                    if rtt_stat.fin_ack_rtt]
-    for rtt_stat in rtt_stats:
-      for app in rtt_stat.application_rtts:
-        if app not in application_rtts:
-          application_rtts[app] = []
-        application_rtts[app] += rtt_stat.application_rtts.get(app)
+      local_ip = list(set(sorted(Tshark(filename, ['ip.src'],
+                                        ['tcp.flags.syn == 1',
+                                         'tcp.flags.ack == 0']).lines())))
 
-    print 'SYN,', ','.join([str(i) for i in syn_ack_rtts])
-    print 'FIN,', ','.join([str(i) for i in fin_ack_rtts])
-    for app in application_rtts:
-      print ','.join([app] + [str(duration) for (length, duration) in
-                              application_rtts.get(app)])
-      # print app, StatsPrinter([duration for (length, duration) in
-      #                          application_rtts.get(app)])
+      fields = ['ip.src', 'tcp.srcport', 'ip.dst', 'tcp.dstport',]
+      constraints = ['tcp.flags.syn == 1', 'tcp.flags.ack == 0',]
 
-      # if app != 'image/jpeg':
-      #   continue
+      tcp_convos = list(set(sorted(Tshark(filename, fields, constraints).lines())))
+      rtt_stats = []
+      for line in tcp_convos:
+        convo = SocketConvo(filename, *line.strip().split(','))
+        rtt_stats.append(convo.rtt_stats())
 
-      # # StatsPrinter(application_rtts.get(app))
-      # for (length, duration) in application_rtts.get(app):
-      #   print '%d,%f' % (length, duration)
-      # print
+      syn_ack_rtts = [rtt_stat.syn_ack_rtt for rtt_stat in rtt_stats
+                      if rtt_stat.syn_ack_rtt]
+      fin_ack_rtts = [rtt_stat.fin_ack_rtt for rtt_stat in rtt_stats
+                      if rtt_stat.fin_ack_rtt]
+      for rtt_stat in rtt_stats:
+        for app in rtt_stat.application_rtts:
+          if app not in application_rtts:
+            application_rtts[app] = []
+          application_rtts[app] += rtt_stat.application_rtts.get(app)
+
+      print 'SYN,', ','.join([str(i) for i in syn_ack_rtts])
+      print 'FIN,', ','.join([str(i) for i in fin_ack_rtts])
+      for app in application_rtts:
+        print ','.join([app] + [str(duration) for (length, duration) in
+                                application_rtts.get(app)])
+        # print app, StatsPrinter([duration for (length, duration) in
+        #                          application_rtts.get(app)])
+
+        # if app != 'image/jpeg':
+        #   continue
+
+        # # StatsPrinter(application_rtts.get(app))
+        # for (length, duration) in application_rtts.get(app):
+        #   print '%d,%f' % (length, duration)
+        # print
+      print
 
 if __name__=='__main__':
   main(sys.argv)
