@@ -20,17 +20,12 @@ for (line in lines) {
   frames[[name]] = data.frame(rtts=c(values))
 }
 
-#print(frames[['application/javascript']]$rtts)
-for (name in names(frames)) {
-  print(frames[[name]]$rtts)
-}
-
 plots = list()
 p = ggplot()
 for (plotname in names(frames)) {
-  plots[[plotname]] = ggplot(frames[[plotname]], aes(factor(plotname),rtts)) + 
-    scale_x_discrete(name=plotname) +
-    scale_y_continuous(limits=c(0,.4)) +
+  plots[[plotname]] = ggplot(frames[[plotname]], aes(plotname,rtts)) + 
+    scale_x_discrete(name='', labels=plotname) +
+    scale_y_continuous(name='RTT (sec)', limits=c(0,max_val)) +
     geom_boxplot()
   show(plots[[plotname]])
 }
