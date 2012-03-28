@@ -44,7 +44,7 @@ class StatsPrinter(object):
 class ConvoStatistics(object):
   def __init__(self, syn_ack_rtt, fin_ack_rtt, application_rtts):
     self.syn_ack_rtt = float(syn_ack_rtt)
-    self.fin_ack_rtt = float(fin_ack_rtt)
+    self.fin_ack_rtt = float(fin_ack_rtt) if fin_ack_rtt else None
     self.application_rtts = application_rtts
 
   def __repr__(self):
@@ -87,6 +87,7 @@ class SocketConvo(object):
 
   def rtt_stats(self):
     fields = ['frame.number',
+              'frame.len',
               'tcp.analysis.acks_frame',
               'tcp.flags.syn',
               'tcp.flags.fin',
@@ -104,7 +105,7 @@ class SocketConvo(object):
     latest_ack_rtt = None
     content_num_packets = 0
     syn_ack_rtt = 0
-    fin_ack_rtt = 0
+    fin_ack_rtt = None
     application_rtts = {}
 
     for packet in convo_packets:
@@ -124,12 +125,15 @@ class SocketConvo(object):
       if content_type:
         if content_type not in application_rtts:
           application_rtts[content_type] = []
-        application_rtts[content_type].append(float(latest_ack_rtt))
+        application_rtts[content_type].append(
+          (int(packet['frame.len']), float(latest_ack_rtt)))
         content_num_packets = 0
 
     # FIN ACK Measurement.
     if (['1'] == Tshark(self.filename, ['tcp.flags.fin'],
-                        ['frame.number == %s' % latest_ack_frame[1]]).lines()):
+                        ['frame.number == %s' % latest_ack_frame[1]]).lines()
+        and
+        latest_ack_rtt > 0):
       fin_ack_rtt = latest_ack_rtt
 
     # Summary
@@ -147,10 +151,12 @@ def main(argv):
   data_dir = os.path.abspath(FLAGS.datadir)
   filenames = listdir_match(data_dir, 'tmob(reg|hspa)_(chrome|firefox).*pcap$')
 
-  syn_ack_rtts = []
-  fin_ack_rtts = []
-  application_rtts = {}
-  for filename in filenames[:1]:
+  for filename in filenames[:5]:
+    print
+    syn_ack_rtts = []
+    fin_ack_rtts = []
+    application_rtts = {}
+
     local_ip = list(set(sorted(Tshark(filename, ['ip.src'],
                                       ['tcp.flags.syn == 1',
                                        'tcp.flags.ack == 0']).lines())))
@@ -164,17 +170,31 @@ def main(argv):
       convo = SocketConvo(filename, *line.strip().split(','))
       rtt_stats.append(convo.rtt_stats())
 
+    syn_ack_rtts = [rtt_stat.syn_ack_rtt for rtt_stat in rtt_stats
+                    if rtt_stat.syn_ack_rtt]
+    fin_ack_rtts = [rtt_stat.fin_ack_rtt for rtt_stat in rtt_stats
+                    if rtt_stat.fin_ack_rtt]
     for rtt_stat in rtt_stats:
-      syn_ack_rtts.append(rtt_stat.syn_ack_rtt)
-      fin_ack_rtts.append(rtt_stat.fin_ack_rtt)
       for app in rtt_stat.application_rtts:
         if app not in application_rtts:
           application_rtts[app] = []
         application_rtts[app] += rtt_stat.application_rtts.get(app)
-  print StatsPrinter(syn_ack_rtts)
-  print fin_ack_rtts
-  print application_rtts
 
+    print 'SYN,', ','.join([str(i) for i in syn_ack_rtts])
+    print 'FIN,', ','.join([str(i) for i in fin_ack_rtts])
+    for app in application_rtts:
+      print ','.join([app] + [str(duration) for (length, duration) in
+                              application_rtts.get(app)])
+      # print app, StatsPrinter([duration for (length, duration) in
+      #                          application_rtts.get(app)])
+
+      # if app != 'image/jpeg':
+      #   continue
+
+      # # StatsPrinter(application_rtts.get(app))
+      # for (length, duration) in application_rtts.get(app):
+      #   print '%d,%f' % (length, duration)
+      # print
 
 if __name__=='__main__':
   main(sys.argv)

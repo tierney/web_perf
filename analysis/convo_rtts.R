@@ -1,13 +1,38 @@
+# Notes:
+## jpeg - inverse relationship (size, download time?)
+
 require('ggplot2')
+library(gridExtra)
 
-l = data.frame(cbind(x=0, y=list(0.066457, 0.081394, 0.085076, 0.066777, 
-                                 0.088536, 0.06641, 0.079548, 0.06486, 0.084461, 
-                                 0.048209, 0.085478, 0.081306, 0.066609, 0.084109, 
-                                 0.048232, 0.079461, 0.080801, 0.0665, 0.068928, 
-                                 0.048161, 0.082527, 0.085426, 0.085572, 0.07738, 
-                                 0.082631, 0.048215, 0.084062, 0.075756, 0.083482, 
-                                 0.079564, 0.086188, 0.079332, 0.066668, 0.066312)))
+increment <- function(x) {
+  eval.parent(substitute(x <- x + 1))
+}
 
+lines = readLines('~/data.log')
+i = 0
+frames = list()
+max_val = 0
+for (line in lines) {
+  data = unlist(strsplit(line, ','))
+  name = data[1]
+  values = as.numeric(data[2:length(data)])
+  max_val = max(max_val, values)
+  frames[[name]] = data.frame(rtts=c(values))
+}
 
-p = ggplot(fin, rtt, l[1],aes(l[1], l[2]))
-show(p)
+#print(frames[['application/javascript']]$rtts)
+for (name in names(frames)) {
+  print(frames[[name]]$rtts)
+}
+
+plots = list()
+p = ggplot()
+for (plotname in names(frames)) {
+  plots[[plotname]] = ggplot(frames[[plotname]], aes(factor(plotname),rtts)) + 
+    scale_x_discrete(name=plotname) +
+    scale_y_continuous(limits=c(0,.4)) +
+    geom_boxplot()
+  show(plots[[plotname]])
+}
+
+do.call(grid.arrange, plots)
