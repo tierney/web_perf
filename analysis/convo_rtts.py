@@ -5,6 +5,7 @@ import logging
 import os
 import subprocess
 import sys
+import time
 import threading
 import Queue
 from numpy import std,var,median,mean
@@ -148,12 +149,15 @@ class StatRunner(threading.Thread):
   def __init__(self, queue):
     threading.Thread.__init__(self)
     self.queue = queue
+    self.daemon = True
+    self.done = False
 
   def run(self):
     while True:
       try:
         filename = self.queue.get()
       except Queue.Empty:
+        self.done = True
         break
 
       syn_ack_rtts = []
@@ -183,11 +187,13 @@ class StatRunner(threading.Thread):
             application_rtts[app] = []
           application_rtts[app] += rtt_stat.application_rtts.get(app)
 
-      print DataPrinter(syn_ack_rtts, 'SYN')
-      print DataPrinter(fin_ack_rtts, 'FIN')
-      for app in application_rtts:
-        print DataPrinter([str(duration) for (length, duration) in
-                           application_rtts.get(app)], app)
+      # print DataPrinter(syn_ack_rtts, 'SYN')
+      # print DataPrinter(fin_ack_rtts, 'FIN')
+      # for app in application_rtts:
+      #   print DataPrinter([str(duration) for (length, duration) in
+      #                      application_rtts.get(app)], app)
+
+      self.queue.task_done()
 
       # for app in application_rtts:
       #   print ','.join([app] + [str(duration) for (length, duration) in
@@ -215,11 +221,28 @@ def main(argv):
   data_dir = os.path.abspath(FLAGS.datadir)
   filenames = listdir_match(data_dir, 'tmob(reg|hspa)_(chrome|firefox).*pcap$')
 
+  NUM_THREADS=5
   queue = Queue.Queue()
   for filename in filenames[:5]:
     queue.put(filename)
-  t = StatRunner(queue)
-  t.start()
+
+  threads = [StatRunner(queue) for i in range(NUM_THREADS)]
+  start = [t.start() for t in threads]
+  while True:
+    qsize = queue.qsize()
+    if qsize == 0:
+      break
+    sys.stdout.write('%3d tasks remaining.\r' % (qsize))
+    sys.stdout.flush()
+    time.sleep(1)
+
+  while True:
+    completed = [t.done for t in threads]
+    if False not in completed:
+      break
+    sys.stdout.write('waiting....\r')
+    sys.stdout.flush()
+    time.sleep(1)
 
 if __name__=='__main__':
   main(sys.argv)
