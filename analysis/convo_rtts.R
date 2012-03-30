@@ -4,15 +4,35 @@
 # Signals and Stories.
 
 require('ggplot2')
+require('hash')
 library(gridExtra)
 
 increment <- function(x) {
   eval.parent(substitute(x <- x + 1))
 }
 
-data = read.csv('~/data.log', header=FALSE, sep=',')
-p = qplot(data=data, x=V2, y=V1) + geom_boxplot() + opts(axis.text.x=theme_text(angle=-90, hjust=0))
-show(p)
+data = read.csv('~/data.log', header=T, sep=',')
+
+individual_plots = function(data) {
+  for (pfilename in unique(data$filename)) {
+    sdata = subset(data, filename == pfilename)
+    q = qplot(reorder(type, rtt, min), rtt, data=sdata) +
+      scale_x_discrete(name='') +
+      scale_y_log10(name='RTT (log(ms))') +
+      geom_boxplot() + 
+      opts(axis.text.x=theme_text(angle=-90, hjust=0),
+           title=pfilename)
+    out_svg = paste(pfilename, 'svg', sep='.')
+    ggsave(out_svg)
+  }
+}
+
+# individual_plots(data)
+View(data)
+#show(q)
+
+#qplot(length, rtt, data=data) + 
+#  scale_y_continuous(name='RTT (sec)', limits=c(0.03,0.2), breaks=seq(0,0.25,0.01))
 
 ## for (line in lines) {
 ##   sline = unsplit(strsplit(line,','))

@@ -47,16 +47,17 @@ class DataPrinter(object):
 
 
 class ConvoStatistics(object):
+  # type_label, rtt_measurement, **other data
   def __init__(self, syn_ack_rtt, fin_ack_rtt, application_rtts):
-    self.syn_ack_rtt = float(syn_ack_rtt)
-    self.fin_ack_rtt = float(fin_ack_rtt) if fin_ack_rtt else None
+    self.syn_ack_rtt = syn_ack_rtt
+    self.fin_ack_rtt = fin_ack_rtt if fin_ack_rtt else None
     self.application_rtts = application_rtts
 
   def __repr__(self):
     app_rtts = '\n'
     for key in self.application_rtts:
       app_rtts += '    %s: %s\n' % (key, self.application_rtts.get(key))
-    return 'ConvoStatistics:\n  syn_ack_rtt: %f\n  fin_ack_rtt: %f\n  app_rtts: %s' \
+    return 'ConvoStats:\n syn_ack_rtt: %s\n fin_ack_rtt: %s\n app_rtts: %s' \
         % (self.syn_ack_rtt, self.fin_ack_rtt, app_rtts)
 
 
@@ -74,7 +75,8 @@ class Tshark(object):
     return cmd
 
   def lines(self):
-    popen_ack_rtts = subprocess.Popen(self.cmd(), shell=True, stdout=subprocess.PIPE)
+    popen_ack_rtts = subprocess.Popen(self.cmd(), shell=True,
+                                      stdout=subprocess.PIPE)
     return [line.strip() for line in popen_ack_rtts.stdout.readlines()]
 
 
@@ -90,9 +92,18 @@ class SocketConvo(object):
     return 'SocketConvo (%s:%s <-> %s:%s)' \
         % (self.src_ip, self.src_port, self.dst_ip, self.dst_port)
 
-  def rtt_stats(self):
+  def _is_fin(self, packet):
+    return ['1'] == Tshark(self.filename, ['tcp.flags.fin'],
+                           ['frame.number == %s' \
+                              % packet['tcp.analysis.acks_frame']]).lines()
+
+  def convo_packets(self):
     fields = ['frame.number',
               'frame.len',
+              'ip.src',
+              'tcp.srcport',
+              'ip.dst',
+              'tcp.dstport',
               'tcp.analysis.acks_frame',
               'tcp.flags.syn',
               'tcp.flags.fin',
@@ -105,60 +116,61 @@ class SocketConvo(object):
                    'tcp.dstport == %s' % self.src_port,
                    ]
     lines = Tshark(self.filename, fields, constraints).lines()
-    convo_packets = [dict(zip(fields, line.strip().split(','))) for line in lines]
+    convo_packets = [dict(zip(fields, line.strip().split(',')))
+                     for line in lines]
 
     latest_ack_rtt = None
     content_num_packets = 0
-    syn_ack_rtt = 0
+    syn_ack_rtt = None
     fin_ack_rtt = None
     application_rtts = {}
-
+    ret_convo_packets = []
     for packet in convo_packets:
+      packet['filename'] = self.filename
       ack_rtt = packet['tcp.analysis.ack_rtt']
       if ack_rtt:
         # SYN ACK Measurement.
         if not latest_ack_rtt:
-          syn_ack_rtt = ack_rtt
+          packet['label'] = 'ACK'
+          ret_convo_packets.append(packet)
 
-        latest_ack_rtt = ack_rtt
-        latest_ack_frame = (packet['frame.number'],
-                            packet['tcp.analysis.acks_frame'],
-                            latest_ack_rtt)
+        latest_ack_packet = packet
 
       content_num_packets += 1
       content_type = packet['http.content_type']
+
       if content_type:
-        if content_type not in application_rtts:
-          application_rtts[content_type] = []
-        application_rtts[content_type].append(
-          (int(packet['frame.len']), float(latest_ack_rtt)))
+        packet['label'] = packet['http.content_type']
+        packet['tcp.analysis.ack_rtt'] = latest_ack_packet['tcp.analysis.ack_rtt']
+        ret_convo_packets.append(packet)
         content_num_packets = 0
 
     # FIN ACK Measurement.
-    if (['1'] == Tshark(self.filename, ['tcp.flags.fin'],
-                        ['frame.number == %s' % latest_ack_frame[1]]).lines()
-        and
-        latest_ack_rtt > 0):
-      fin_ack_rtt = latest_ack_rtt
+    if (self._is_fin(latest_ack_packet) and
+        latest_ack_packet['tcp.analysis.ack_rtt'] > 0):
+
+      latest_ack_packet['label'] = 'FIN'
+      ret_convo_packets.append(latest_ack_packet)
 
     # Summary
-    cs = ConvoStatistics(syn_ack_rtt, fin_ack_rtt, application_rtts)
-    return cs
+    return ret_convo_packets
 
 class StatRunner(threading.Thread):
-  def __init__(self, queue):
+  def __init__(self, in_queue, out_queue):
     threading.Thread.__init__(self)
-    self.queue = queue
+    self.in_queue = in_queue
+    self.out_queue = out_queue
     self.daemon = True
     self.done = False
 
   def run(self):
     while True:
       try:
-        filename = self.queue.get()
+        filename = self.in_queue.get(False)
+        logging.info('Dequeued %s.' % filename)
       except Queue.Empty:
         self.done = True
-        break
+        return
 
       syn_ack_rtts = []
       fin_ack_rtts = []
@@ -171,44 +183,64 @@ class StatRunner(threading.Thread):
       fields = ['ip.src', 'tcp.srcport', 'ip.dst', 'tcp.dstport',]
       constraints = ['tcp.flags.syn == 1', 'tcp.flags.ack == 0',]
 
-      tcp_convos = list(set(sorted(Tshark(filename, fields, constraints).lines())))
-      rtt_stats = []
+      tcp_convos = list(set(sorted(
+            Tshark(filename, fields, constraints).lines())))
+
+      convo_packets = []
       for line in tcp_convos:
         convo = SocketConvo(filename, *line.strip().split(','))
-        rtt_stats.append(convo.rtt_stats())
+        convo_packets.append(convo.convo_packets())
 
-      syn_ack_rtts = [rtt_stat.syn_ack_rtt for rtt_stat in rtt_stats
-                      if rtt_stat.syn_ack_rtt]
-      fin_ack_rtts = [rtt_stat.fin_ack_rtt for rtt_stat in rtt_stats
-                      if rtt_stat.fin_ack_rtt]
-      for rtt_stat in rtt_stats:
-        for app in rtt_stat.application_rtts:
-          if app not in application_rtts:
-            application_rtts[app] = []
-          application_rtts[app] += rtt_stat.application_rtts.get(app)
+      logging.info('Finished %s.' % filename)
 
-      # print DataPrinter(syn_ack_rtts, 'SYN')
-      # print DataPrinter(fin_ack_rtts, 'FIN')
-      # for app in application_rtts:
-      #   print DataPrinter([str(duration) for (length, duration) in
-      #                      application_rtts.get(app)], app)
+      self.out_queue.put(convo_packets)
+      self.in_queue.task_done()
 
-      self.queue.task_done()
+class OutQueueWriter(threading.Thread):
+  def __init__(self, filename, out_queue):
+    threading.Thread.__init__(self)
+    self.out_queue = out_queue
+    self.filename = filename
+    self.daemon = True
+    self._fh = None
 
-      # for app in application_rtts:
-      #   print ','.join([app] + [str(duration) for (length, duration) in
-      #                           application_rtts.get(app)])
-        # print app, DataPrinter([duration for (length, duration) in
-        #                          application_rtts.get(app)])
+  def _write_data(self, filename, content_type, rtts):
+    ret = ''
+    for length, rtt in rtts:
+      ret += '%(filename)s,%(content_type)s,%(length)s,%(rtt)s\n' % locals()
+    self._fh.write(ret)
+    self._fh.flush()
 
-        # if app != 'image/jpeg':
-        #   continue
+  def run(self):
+    fields_to_print=['label',
+                     'tcp.analysis.ack_rtt',
+                     'frame.len',
+                     'ip.src',
+                     'tcp.srcport',
+                     'tcp.dstport',
+                     ]
 
-        # # DataPrinter(application_rtts.get(app))
-        # for (length, duration) in application_rtts.get(app):
-        #   print '%d,%f' % (length, duration)
-        # print
+    derived_fields = ['filename', 'hspa', 'cached', 'domain']
+    with open(os.path.expanduser(self.filename), 'w') as self._fh:
+      self._fh.write(','.join(derived_fields + fields_to_print) + '\n')
+      self._fh.flush()
+      while True:
+        # TODO(tierney): Labels for cached or not (firefox, chrome) and original name.
+        out_data = self.out_queue.get()
+        for convo in out_data:
+          for packet in convo:
 
+            filename = os.path.basename(packet['filename'])
+            sfilename = filename.split('_')
+
+            hspa = '1' if 'tmobhspa' == sfilename[0] else '0'
+            cached = '1' if 'firefox' == sfilename[1] else '0'
+            domain = sfilename[2]
+
+            self._fh.write(
+              ','.join([filename,hspa,cached,domain]) + ',' + \
+                ','.join([packet[field] for field in fields_to_print]) + '\n')
+        self._fh.flush()
 
 
 def main(argv):
@@ -222,27 +254,36 @@ def main(argv):
   filenames = listdir_match(data_dir, 'tmob(reg|hspa)_(chrome|firefox).*pcap$')
 
   NUM_THREADS=5
-  queue = Queue.Queue()
-  for filename in filenames[:5]:
-    queue.put(filename)
+  in_queue = Queue.Queue()
+  out_queue = Queue.Queue()
+  for filename in filenames:
+    in_queue.put(filename)
 
-  threads = [StatRunner(queue) for i in range(NUM_THREADS)]
+  out_writer = OutQueueWriter('~/data.log', out_queue)
+  out_writer.start()
+
+  threads = [StatRunner(in_queue, out_queue) for i in range(NUM_THREADS)]
   start = [t.start() for t in threads]
   while True:
-    qsize = queue.qsize()
+    qsize = in_queue.qsize()
     if qsize == 0:
       break
     sys.stdout.write('%3d tasks remaining.\r' % (qsize))
     sys.stdout.flush()
     time.sleep(1)
+  print
 
   while True:
     completed = [t.done for t in threads]
     if False not in completed:
       break
-    sys.stdout.write('waiting....\r')
+    sys.stdout.write('waiting on %d....\r' % completed.count(False))
     sys.stdout.flush()
     time.sleep(1)
+
+  # TODO(tierney): Find a better way to wait for outwriter to finish.
+  print '\nDone.'
+  time.sleep(3)
 
 if __name__=='__main__':
   main(sys.argv)
