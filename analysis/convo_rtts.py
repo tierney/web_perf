@@ -11,6 +11,8 @@ import Queue
 from numpy import std,var,median,mean
 import gflags
 
+MEDIA_TYPE = re.compile('(.*)\/([a-zA-Z\-\+]*);*(.*)')
+
 FLAGS=gflags.FLAGS
 
 gflags.DEFINE_string('datadir', None, 'data directory', short_name='d')
@@ -220,25 +222,32 @@ class OutQueueWriter(threading.Thread):
                      'tcp.dstport',
                      ]
 
-    derived_fields = ['filename', 'hspa', 'cached', 'domain']
+    derived_fields = ['filename', 'hspa', 'cached', 'domain', 'media_type',
+                      'media_subtype', 'media_subtype_parameter']
+
     with open(os.path.expanduser(self.filename), 'w') as self._fh:
       self._fh.write(','.join(derived_fields + fields_to_print) + '\n')
       self._fh.flush()
       while True:
-        # TODO(tierney): Labels for cached or not (firefox, chrome) and original name.
         out_data = self.out_queue.get()
         for convo in out_data:
           for packet in convo:
+            media_type, media_subtype, media_subtype_parameter = ('', '', '')
 
             filename = os.path.basename(packet['filename'])
             sfilename = filename.split('_')
 
-            hspa = '1' if 'tmobhspa' == sfilename[0] else '0'
-            cached = '1' if 'firefox' == sfilename[1] else '0'
+            hspa = 'TRUE' if 'tmobhspa' == sfilename[0] else 'FALSE'
+            cached = 'TRUE' if 'firefox' == sfilename[1] else 'FALSE'
             domain = sfilename[2]
 
+            m = re.search(MEDIA_TYPE, packet['label'])
+            if m:
+              media_type, media_subtype, media_subtype_parameter = m.groups()
+
             self._fh.write(
-              ','.join([filename,hspa,cached,domain]) + ',' + \
+              ','.join([filename,hspa,cached,domain,media_type,
+                        media_subtype, media_subtype_parameter]) + ',' + \
                 ','.join([packet[field] for field in fields_to_print]) + '\n')
         self._fh.flush()
 
@@ -256,7 +265,7 @@ def main(argv):
   NUM_THREADS=5
   in_queue = Queue.Queue()
   out_queue = Queue.Queue()
-  for filename in filenames:
+  for filename in filenames[:10]:
     in_queue.put(filename)
 
   out_writer = OutQueueWriter('~/data.log', out_queue)
@@ -277,7 +286,7 @@ def main(argv):
     completed = [t.done for t in threads]
     if False not in completed:
       break
-    sys.stdout.write('waiting on %d....\r' % completed.count(False))
+    sys.stdout.write('Waiting on %-3d tasks.\r' % completed.count(False))
     sys.stdout.flush()
     time.sleep(1)
 

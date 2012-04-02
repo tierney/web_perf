@@ -21,36 +21,15 @@ gflags.DEFINE_string('write', None, 'file to write', short_name='w')
 
 gflags.MarkFlagAsRequired('read')
 
-# x-x
-# JavaScript
-# jpeg
-# svg+xml
-# ocsp-response
-# unix-directory
-# xml
-# x-shockwave-flash
-# unknown
-# json
-# gif
-# octet-stream
-# html
-# x-woff
-# css
-# vnd
-# javascript
-# JPEG
-# GIF
-# jpg
-# x-amf
-# png
-# plain
-# opensearchdescription+xml
-# x-cross-domain-policy
-# x-javascript
-# x-fcs
-# x-flv
-# x-multiad-json
-# x-icon
+GENERAL_SUBTYPES = {
+  'JavaScript' : 'javascript',
+  'jpeg': 'jpeg',
+  'gif' : 'gif',
+  'javascript' : 'javascript',
+  'JPEG' : 'jpeg',
+  'GIF' : 'gif',
+  'jpg' : 'jpeg',
+}
 
 def main(argv):
   try:
@@ -80,7 +59,11 @@ def main(argv):
   print media_types
   print subtypes
   for subtype in subtypes:
-    print subtype
+    if subtype in GENERAL_SUBTYPES:
+      print GENERAL_SUBTYPES[subtype]
+    else:
+      print subtype
+
 
 if __name__=='__main__':
   main(sys.argv)

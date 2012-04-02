@@ -28,7 +28,19 @@ individual_plots = function(data) {
 }
 
 # individual_plots(data)
-View(data)
+
+sdata = data[data$hspa==T & data$cached==F,]
+q = qplot(reorder(media_subtype, tcp.analysis.ack_rtt, median), 
+          tcp.analysis.ack_rtt, data=sdata) + 
+            geom_boxplot() + 
+            scale_x_discrete(name='') +
+            #scale_y_log10(name='RTT (log(sec))', limits=c(.01, 3)) +
+            scale_y_continuous(name='RTT (sec)', limits=c(.01, 3)) +
+            opts(axis.text.x=theme_text(angle=-90, hjust=0),
+                 title='HSPA, Uncached')
+show(q)
+
+#View(data)
 #show(q)
 
 #qplot(length, rtt, data=data) + 
