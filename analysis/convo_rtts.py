@@ -15,7 +15,11 @@ MEDIA_TYPE = re.compile('(.*)\/([a-zA-Z\-\+]*);*(.*)')
 
 FLAGS=gflags.FLAGS
 
-gflags.DEFINE_string('datadir', None, 'data directory', short_name='d')
+gflags.DEFINE_integer('threads', 5, 'number of threads to spawn',
+                      short_name = 't')
+gflags.DEFINE_integer('maxfiles', None, 'maximum files to consider',
+                      short_name = 'm')
+gflags.DEFINE_string('datadir', None, 'data directory', short_name = 'd')
 gflags.MarkFlagAsRequired('datadir')
 
 def get_var(input_dict, accessor_string):
@@ -111,6 +115,8 @@ class SocketConvo(object):
               'tcp.flags.fin',
               'tcp.analysis.ack_rtt',
               'http.content_type',
+              'tcp.reassembled.length',
+              'http.content_length',
               ]
     constraints = ['ip.src == %s ' % self.dst_ip,
                    'tcp.srcport == %s' % self.dst_port,
@@ -216,6 +222,8 @@ class OutQueueWriter(threading.Thread):
   def run(self):
     fields_to_print=['label',
                      'tcp.analysis.ack_rtt',
+                     'tcp.reassembled.length',
+                     'http.content_length',
                      'frame.len',
                      'ip.src',
                      'tcp.srcport',
@@ -232,11 +240,14 @@ class OutQueueWriter(threading.Thread):
         out_data = self.out_queue.get()
         for convo in out_data:
           for packet in convo:
+            # Initialize media data.
             media_type, media_subtype, media_subtype_parameter = ('', '', '')
 
             filename = os.path.basename(packet['filename'])
             sfilename = filename.split('_')
 
+            # TODO(tierney): Lots of assumptions about format of data baked-in
+            # right here.
             hspa = 'TRUE' if 'tmobhspa' == sfilename[0] else 'FALSE'
             cached = 'TRUE' if 'firefox' == sfilename[1] else 'FALSE'
             domain = sfilename[2]
@@ -262,16 +273,15 @@ def main(argv):
   data_dir = os.path.abspath(FLAGS.datadir)
   filenames = listdir_match(data_dir, 'tmob(reg|hspa)_(chrome|firefox).*pcap$')
 
-  NUM_THREADS=5
   in_queue = Queue.Queue()
   out_queue = Queue.Queue()
-  for filename in filenames[:10]:
+  for filename in filenames[:FLAGS.maxfiles]:
     in_queue.put(filename)
 
   out_writer = OutQueueWriter('~/data.log', out_queue)
   out_writer.start()
 
-  threads = [StatRunner(in_queue, out_queue) for i in range(NUM_THREADS)]
+  threads = [StatRunner(in_queue, out_queue) for i in range(FLAGS.threads)]
   start = [t.start() for t in threads]
   while True:
     qsize = in_queue.qsize()
