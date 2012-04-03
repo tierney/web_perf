@@ -82,7 +82,8 @@ class Tshark(object):
 
   def lines(self):
     popen_ack_rtts = subprocess.Popen(self.cmd(), shell=True,
-                                      stdout=subprocess.PIPE)
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE)
     return [line.strip() for line in popen_ack_rtts.stdout.readlines()]
 
 
@@ -118,6 +119,7 @@ class SocketConvo(object):
               'tcp.reassembled.length',
               'http.content_length',
               ]
+
     constraints = ['ip.src == %s ' % self.dst_ip,
                    'tcp.srcport == %s' % self.dst_port,
                    'ip.dst == %s' % self.src_ip,
@@ -127,7 +129,7 @@ class SocketConvo(object):
     convo_packets = [dict(zip(fields, line.strip().split(',')))
                      for line in lines]
 
-    latest_ack_rtt = None
+    latest_ack_packet = None
     content_num_packets = 0
     syn_ack_rtt = None
     fin_ack_rtt = None
@@ -138,8 +140,8 @@ class SocketConvo(object):
       ack_rtt = packet['tcp.analysis.ack_rtt']
       if ack_rtt:
         # SYN ACK Measurement.
-        if not latest_ack_rtt:
-          packet['label'] = 'ACK'
+        if not latest_ack_packet:
+          packet['label'] = 'SYN'
           ret_convo_packets.append(packet)
 
         latest_ack_packet = packet
@@ -231,7 +233,7 @@ class OutQueueWriter(threading.Thread):
                      ]
 
     derived_fields = ['filename', 'hspa', 'cached', 'domain', 'media_type',
-                      'media_subtype', 'media_subtype_parameter']
+                      'media_subtype', 'media_subtype_parameter', 'first_request']
 
     with open(os.path.expanduser(self.filename), 'w') as self._fh:
       self._fh.write(','.join(derived_fields + fields_to_print) + '\n')
@@ -239,6 +241,9 @@ class OutQueueWriter(threading.Thread):
       while True:
         out_data = self.out_queue.get()
         for convo in out_data:
+
+          convo_first_request = False
+
           for packet in convo:
             # Initialize media data.
             media_type, media_subtype, media_subtype_parameter = ('', '', '')
@@ -252,13 +257,21 @@ class OutQueueWriter(threading.Thread):
             cached = 'TRUE' if 'firefox' == sfilename[1] else 'FALSE'
             domain = sfilename[2]
 
-            m = re.search(MEDIA_TYPE, packet['label'])
-            if m:
-              media_type, media_subtype, media_subtype_parameter = m.groups()
+            media_match = re.search(MEDIA_TYPE, packet['label'])
+            if media_match:
+              media_type, media_subtype, media_subtype_parameter = \
+                  media_match.groups()
+
+            # Labeling first HTTP request object.
+            first_request = 'FALSE'
+            if not convo_first_request and media_match and \
+                  'SYN' != packet['label']:
+              convo_first_request = True
+              first_request = 'TRUE'
+
 
             self._fh.write(
-              ','.join([filename,hspa,cached,domain,media_type,
-                        media_subtype, media_subtype_parameter]) + ',' + \
+              ','.join([eval(df) for df in derived_fields]) + ',' + \
                 ','.join([packet[field] for field in fields_to_print]) + '\n')
         self._fh.flush()
 
